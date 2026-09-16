@@ -1,10 +1,11 @@
 // Private AI cost dashboard: only rendered after admin PIN is verified.
 S.aiUsage=null;
+const AI_COST_ADMIN=SB+'/functions/v1/theology-ai-cost';
 
-async function privateRpc(name,payload={}){
-  const r=await fetch(REST+'/rpc/'+name,{method:'POST',headers:{...H,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+async function costAdmin(action,payload={}){
+  const r=await fetch(AI_COST_ADMIN,{method:'POST',headers:{'Content-Type':'application/json','x-admin-pin':S.pin},body:JSON.stringify({action,...payload})});
   let j={};try{j=await r.json()}catch{}
-  if(!r.ok)throw Error(j.message||j.error||'Không tải được dữ liệu chi phí AI');
+  if(!r.ok)throw Error(j.error||'Không tải được dữ liệu chi phí AI');
   return j;
 }
 
@@ -37,7 +38,7 @@ unlock=function(){
 async function openAiCost(){
   if(!S.pin){unlock();return}
   S.tab='ai-cost';S.selected=null;S.aiUsage=null;render();
-  try{S.aiUsage=await privateRpc('get_ai_usage_private',{admin_pin:S.pin});render()}catch(e){S.aiUsage={error:e.message};render()}
+  try{S.aiUsage=await costAdmin('summary');render()}catch(e){S.aiUsage={error:e.message};render()}
 }
 
 async function setAiFunded(){
@@ -45,7 +46,7 @@ async function setAiFunded(){
   const raw=prompt('Nhập TỔNG số tiền API bạn đã nạp để app tính số dư còn lại (USD):',current?String(current):'5.00');
   if(raw===null)return;
   const v=Number(raw);if(!Number.isFinite(v)||v<0){alert('Số tiền không hợp lệ.');return}
-  try{await privateRpc('set_ai_budget_private',{admin_pin:S.pin,new_funded_usd:v});await openAiCost()}catch(e){alert(e.message)}
+  try{await costAdmin('set_budget',{funded_usd:v});await openAiCost()}catch(e){alert(e.message)}
 }
 
 function aiCostView(){
