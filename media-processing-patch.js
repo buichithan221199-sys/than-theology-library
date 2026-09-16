@@ -31,11 +31,19 @@ window.fetch=async function(input,init){
   return _fetchMedia(input,init);
 };
 
+function validAttachmentKind(file){
+  const t=String(file?.type||'').toLowerCase(),n=String(file?.name||'').toLowerCase();
+  if(t.startsWith('image/'))return 'image';
+  if(t==='application/pdf'||n.endsWith('.pdf'))return 'pdf';
+  if(t.startsWith('audio/'))return 'audio';
+  return 'other';
+}
+
 async function saveOriginalAttachments(lessonId,files,sourceKind){
   for(const f of files||[]){
     const up=await adm('create_upload_url',{file_name:f.name});
     await _fetchMedia(up.signed_url,{method:'PUT',headers:{'content-type':f.type||'application/octet-stream'},body:f});
-    await adm('register_attachment',{attachment:{lesson_id:lessonId,file_name:f.name,file_path:up.path,mime_type:f.type||'application/octet-stream',file_size:f.size,source_kind:sourceKind}});
+    await adm('register_attachment',{attachment:{lesson_id:lessonId,file_name:f.name,file_path:up.path,mime_type:f.type||'application/octet-stream',file_size:f.size,source_kind:validAttachmentKind(f)}});
   }
 }
 async function saveTranscriptAttachment(lessonId,text,label,sourceKind){
@@ -43,7 +51,7 @@ async function saveTranscriptAttachment(lessonId,text,label,sourceKind){
   const safe=(label||'nguon').replace(/[\\/:*?"<>|]+/g,'-').slice(0,70);const name=`${safe}-noi-dung.txt`;
   const blob=new Blob([text],{type:'text/plain;charset=utf-8'});const up=await adm('create_upload_url',{file_name:name});
   await _fetchMedia(up.signed_url,{method:'PUT',headers:{'content-type':'text/plain;charset=utf-8'},body:blob});
-  await adm('register_attachment',{attachment:{lesson_id:lessonId,file_name:name,file_path:up.path,mime_type:'text/plain',file_size:blob.size,source_kind:sourceKind}});
+  await adm('register_attachment',{attachment:{lesson_id:lessonId,file_name:name,file_path:up.path,mime_type:'text/plain',file_size:blob.size,source_kind:'other'}});
 }
 
 function mediaSourcePreview(v,ctx){
