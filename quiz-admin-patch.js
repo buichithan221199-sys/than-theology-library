@@ -67,11 +67,12 @@
     body.innerHTML=rows.map(({q,a},i)=>{const lesson=S.lessons.find(l=>l.id===q.lesson_id);const has=selectedLetters(a?.correct_option).length>0;return `<div class="question" style="${has?'':'border-color:#d49b63;background:#fffaf4'}"><div class="muted">${esc(lesson?.title||'Không rõ bài học')}</div><b>Câu ${esc(q.sort_order||i+1)}. ${esc(q.question_text||'')}</b><div style="margin-top:8px"><b>${has?'Đáp án: '+esc(answerText(a.correct_option)):'Chưa có đáp án'}</b></div>${a?.explanation?`<div class="muted" style="margin-top:5px">${esc(a.explanation)}</div>`:''}<div style="margin-top:10px"><button class="btn white" onclick="document.querySelector('.overlay')?.remove();editQuizAnswer('${q.id}')">Sửa lựa chọn & đáp án</button></div></div>`}).join('');
   };
 
-  const baseQuestionHtml=questionHtml;
   questionHtml=function(q,i){
-    const html=baseQuestionHtml(q,i);if(!S.pin)return html;
-    const marker='</div>';const admin=`<div style="margin-top:9px"><button class="btn white" onclick="editQuizAnswer('${q.id}')">✎ Sửa lựa chọn & đáp án</button></div>`;
-    const p=html.lastIndexOf(marker);return p>=0?html.slice(0,p)+admin+html.slice(p):html+admin;
+    const o=q.options||{};const keys=optionKeys(o);const a=S.revealed[q.id];
+    const opts=keys.map(k=>o[k]?`<div class="opt">${esc(k)}. ${esc(o[k])}</div>`:'').join('');
+    const answer=a?`<div class="answer"><b>Đáp án: ${esc(a.correct_option)}</b><div>${esc(a.explanation||'')}</div></div>`:`<button class="btn white" onclick="reveal('${q.id}')">Hiển thị đáp án đúng</button>`;
+    const admin=S.pin?`<div style="margin-top:9px"><button class="btn white" onclick="editQuizAnswer('${q.id}')">✎ Sửa lựa chọn & đáp án</button></div>`:'';
+    return `<div class="question"><b>Câu ${i+1}. ${esc(q.question_text)}</b><div class="opts">${opts}</div>${answer}${admin}</div>`;
   };
 
   const baseQuizList=quizList;
