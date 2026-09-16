@@ -38,6 +38,10 @@ function validAttachmentKind(file){
   if(t.startsWith('audio/'))return 'audio';
   return 'other';
 }
+function normalizeCorrectOption(v){
+  const s=String(v||'').toUpperCase().replace(/\s+/g,'');
+  return /^([ABCD])(,[ABCD])*$/.test(s)?s.replace(/,/g,', '):'';
+}
 
 async function saveOriginalAttachments(lessonId,files,sourceKind){
   for(const f of files||[]){
@@ -69,9 +73,8 @@ function mediaQuestionsPreview(v,ctx){
       for(let i=0;i<qs.length;i++){
         const z=qs[i],o=Array.isArray(z.options)?Object.fromEntries(['A','B','C','D'].map((k,j)=>[k,z.options[j]||''])):(z.options||{});
         const payload={question:{lesson_id:ctx.lessonId,question_text:z.question_text||'',options:o,sort_order:i+1,scripture_reference:z.scripture_reference||''}};
-        if(['A','B','C','D'].includes(String(z.correct_option||'').trim().toUpperCase())){
-          payload.answer={correct_option:String(z.correct_option).trim().toUpperCase(),explanation:z.explanation||'',scripture_reference:z.scripture_reference||''};
-        }
+        const correct=normalizeCorrectOption(z.correct_option);
+        if(correct)payload.answer={correct_option:correct,explanation:z.explanation||'',scripture_reference:z.scripture_reference||''};
         await adm('save_question',payload);
       }
       await saveOriginalAttachments(ctx.lessonId,ctx.files,'question_source');
