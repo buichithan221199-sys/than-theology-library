@@ -4,7 +4,7 @@ function pdfEsc(v){
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 function pdfHtmlShell(title,body){return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${pdfEsc(title)}</title><style>
-@page{size:Letter;margin:0.65in}*{box-sizing:border-box}body{font-family:Arial,"Segoe UI",sans-serif;color:#1c2b3d;font-size:11.5pt;line-height:1.55;margin:0}h1,h2,h3,h4{font-family:Georgia,"Times New Roman",serif;color:#15365f;page-break-after:avoid}h1{font-size:23pt;line-height:1.2;margin:0 0 8px}h2{font-size:17pt;margin:24px 0 8px;border-bottom:1px solid #d8cfbf;padding-bottom:5px}h3{font-size:14pt;margin:18px 0 6px}h4{font-size:12.5pt;margin:14px 0 5px}.meta{color:#7a5b19;font-weight:700;margin-bottom:14px}.verse{border-left:4px solid #c99a36;background:#fff9e9;padding:12px 15px;margin:14px 0;font-family:Georgia,"Times New Roman",serif}.mainpoint{margin:20px 0;break-inside:avoid}.subpoint{margin:12px 0 18px 20px;padding-left:14px;border-left:3px solid #d7ad4f;break-inside:avoid}.label{font-weight:700;color:#17375f;margin-top:8px}.ref{font-size:10.5pt;color:#a57620;font-weight:700;margin:4px 0 8px}.question{margin:0 0 18px;break-inside:avoid}.option{margin:4px 0 4px 18px}.footer-note{margin-top:28px;padding-top:10px;border-top:1px solid #ddd;color:#777;font-size:9pt;text-align:center}ol{padding-left:24px}p{margin:6px 0 10px;white-space:pre-line}
+@page{size:Letter;margin:0.65in}*{box-sizing:border-box}body{font-family:Arial,"Segoe UI",sans-serif;color:#1c2b3d;font-size:11.5pt;line-height:1.55;margin:0}h1,h2,h3,h4{font-family:Georgia,"Times New Roman",serif;color:#15365f;page-break-after:avoid}h1{font-size:23pt;line-height:1.2;margin:0 0 8px}h2{font-size:17pt;margin:24px 0 8px;border-bottom:1px solid #d8cfbf;padding-bottom:5px}h3{font-size:14pt;margin:18px 0 6px}h4{font-size:12.5pt;margin:14px 0 5px}.meta{color:#7a5b19;font-weight:700;margin-bottom:14px}.verse{border-left:4px solid #c99a36;background:#fff9e9;padding:12px 15px;margin:14px 0;font-family:Georgia,"Times New Roman",serif}.mainpoint{margin:20px 0;break-inside:avoid}.subpoint{margin:12px 0 18px 20px;padding-left:14px;border-left:3px solid #d7ad4f;break-inside:avoid}.label{font-weight:700;color:#17375f;margin-top:8px}.ref{font-size:10.5pt;color:#a57620;font-weight:700;margin:4px 0 8px}.question{margin:0 0 18px;break-inside:avoid}.option{margin:4px 0 4px 18px}.correct{margin:8px 0 0 18px;padding:7px 10px;border-left:3px solid #409762;background:#edf8f0;font-weight:700}.explanation{margin:4px 0 0 18px;color:#4f5f70;font-size:10.5pt}.footer-note{margin-top:28px;padding-top:10px;border-top:1px solid #ddd;color:#777;font-size:9pt;text-align:center}ol{padding-left:24px}p{margin:6px 0 10px;white-space:pre-line}
 </style></head><body>${body}</body></html>`}
 function openPrintablePdf(title,body){
   try{
@@ -18,6 +18,7 @@ function normalizeOpts(o){
   if(Array.isArray(o)){const x={};o.forEach((v,i)=>{if(v)x[String.fromCharCode(65+i)]=v});return x}
   return o&&typeof o==='object'?o:{};
 }
+function optionKeysPdf(o){return Object.keys(o||{}).filter(k=>/^[A-Z]$/.test(String(k).toUpperCase())&&String(o[k]||'').trim()).map(k=>String(k).toUpperCase()).sort()}
 function exportLessonPdf(){
  try{
   const l=S&&S.selected;if(!l){alert('Chưa chọn bài học.');return}
@@ -31,15 +32,32 @@ function exportQuizPdf(){
   const l=S&&S.selected;if(!l){alert('Chưa chọn bài học.');return}
   const all=Array.isArray(S.questions)?S.questions:[];const qs=all.filter(q=>q&&q.lesson_id===l.id);
   if(!qs.length){alert('Bài học này chưa có câu hỏi trắc nghiệm.');return}
-  const body=`<h1>Bài trắc nghiệm</h1><div class="meta">${pdfEsc(l.title||'')}</div>${l.scripture_reference?`<div style="margin-bottom:16px"><b>Phân đoạn:</b> ${pdfEsc(l.scripture_reference)}</div>`:''}<div style="margin:12px 0 24px"><b>Họ và tên:</b> ________________________________ &nbsp;&nbsp; <b>Ngày:</b> ____________</div>${qs.map((q,i)=>{const o=normalizeOpts(q.options);const keys=Object.keys(o).filter(k=>/^[A-Z]$/.test(k)).sort();return `<div class="question"><b>Câu ${i+1}. ${pdfEsc(q.question_text||'')}</b>${keys.map(k=>o[k]?`<div class="option">${k}. ${pdfEsc(o[k])}</div>`:'').join('')}</div>`}).join('')}<div class="footer-note">Thư Viện Thần Học · Phiếu trắc nghiệm</div>`;
+  const body=`<h1>Bài trắc nghiệm</h1><div class="meta">${pdfEsc(l.title||'')}</div>${l.scripture_reference?`<div style="margin-bottom:16px"><b>Phân đoạn:</b> ${pdfEsc(l.scripture_reference)}</div>`:''}<div style="margin:12px 0 24px"><b>Họ và tên:</b> ________________________________ &nbsp;&nbsp; <b>Ngày:</b> ____________</div>${qs.map((q,i)=>{const o=normalizeOpts(q.options);const keys=optionKeysPdf(o);return `<div class="question"><b>Câu ${q.sort_order||i+1}. ${pdfEsc(q.question_text||'')}</b>${keys.map(k=>`<div class="option">${k}. ${pdfEsc(o[k])}</div>`).join('')}</div>`}).join('')}<div class="footer-note">Thư Viện Thần Học · Phiếu trắc nghiệm</div>`;
   openPrintablePdf((l.title||'Bài học')+' - Trắc nghiệm',body);
  }catch(e){console.error(e);alert('Không thể xuất PDF trắc nghiệm.');}
+}
+async function exportQuizAnswerPdf(){
+ try{
+  if(!S?.pin){alert('Hãy mở Quản trị trước để xuất PDF có đáp án.');return}
+  const l=S?.selected;if(!l){alert('Chưa chọn bài học.');return}
+  const qs=(Array.isArray(S.questions)?S.questions:[]).filter(q=>q&&q.lesson_id===l.id);
+  if(!qs.length){alert('Bài học này chưa có câu hỏi trắc nghiệm.');return}
+  const rows=[];
+  for(const q of qs){
+    let a=S.revealed?.[q.id]||null;
+    if(!a){try{const r=await adm('reveal_answer',{question_id:q.id});a=r?.answer||null;if(a)S.revealed[q.id]=a}catch(e){console.warn('Không tải được đáp án',q.id,e)}}
+    rows.push({q,a});
+  }
+  const body=`<h1>Bài trắc nghiệm · Kèm đáp án</h1><div class="meta">${pdfEsc(l.title||'')}</div>${l.scripture_reference?`<div style="margin-bottom:16px"><b>Phân đoạn:</b> ${pdfEsc(l.scripture_reference)}</div>`:''}${rows.map(({q,a},i)=>{const o=normalizeOpts(q.options);const keys=optionKeysPdf(o);const ans=String(a?.correct_option||'').trim()||'Chưa có đáp án';return `<div class="question"><b>Câu ${q.sort_order||i+1}. ${pdfEsc(q.question_text||'')}</b>${keys.map(k=>`<div class="option">${k}. ${pdfEsc(o[k])}</div>`).join('')}<div class="correct">Đáp án đúng: ${pdfEsc(ans)}</div>${a?.explanation?`<div class="explanation"><b>Giải thích:</b> ${pdfEsc(a.explanation)}</div>`:''}</div>`}).join('')}<div class="footer-note">Thư Viện Thần Học · Bản quản trị có đáp án</div>`;
+  openPrintablePdf((l.title||'Bài học')+' - Trắc nghiệm có đáp án',body);
+ }catch(e){console.error(e);alert('Không thể xuất PDF trắc nghiệm có đáp án.');}
 }
 const _detailPdfExport=detail;
 detail=function(){
  try{
   let h=_detailPdfExport();if(!S||!S.selected)return h;
-  const bar=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 20px"><button class="btn gold" onclick="exportLessonPdf()">📘 Xuất PDF bài học</button><button class="btn white" onclick="exportQuizPdf()">📝 Xuất PDF trắc nghiệm</button></div>`;
+  const answerBtn=S.pin?`<button class="btn white" onclick="exportQuizAnswerPdf()">✅ Xuất PDF trắc nghiệm + đáp án</button>`:'';
+  const bar=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 20px"><button class="btn gold" onclick="exportLessonPdf()">📘 Xuất PDF bài học</button><button class="btn white" onclick="exportQuizPdf()">📝 Xuất PDF trắc nghiệm</button>${answerBtn}</div>`;
   return h.includes('<article class="panel lesson">')?h.replace('<article class="panel lesson">','<article class="panel lesson">'+bar):bar+h;
  }catch(e){console.error('detail export patch error',e);return _detailPdfExport();}
 };
