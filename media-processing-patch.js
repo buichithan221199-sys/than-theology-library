@@ -49,13 +49,28 @@ async function saveTranscriptAttachment(lessonId,text,label,sourceKind){
 function mediaSourcePreview(v,ctx){
   const lesson=S.lessons.find(x=>x.id===ctx.lessonId);const transcript=v?.source_transcript||'';
   const d=overlay(`<div class="modal" style="width:min(900px,96vw)"><button class="x">×</button><h2>Xem trước tài liệu bài học</h2><p class="muted">Tài liệu sẽ được gắn vào: <b>${esc(lesson?.title||'')}</b></p><div class="field"><label>Tiêu đề nhận diện</label><input id="mt" value="${esc(v?.title||'Tài liệu bài học')}"></div><div class="field"><label>Tóm tắt nội dung</label><textarea id="ms" rows="5">${esc(v?.summary||'')}</textarea></div><div class="field"><label>Nội dung đọc được / bản phiên âm</label><textarea id="mx" rows="14">${esc(transcript)}</textarea></div><div class="modalActions"><button class="btn gold" id="save">Lưu vào bài học này</button></div></div>`);
-  d.querySelector('#save').onclick=async()=>{const b=d.querySelector('#save');b.disabled=true;b.textContent='Đang lưu…';try{await saveOriginalAttachments(ctx.lessonId,ctx.files,'lesson_source');const text=d.querySelector('#mx').value.trim();const label=d.querySelector('#mt').value.trim()||'tai-lieu';await saveTranscriptAttachment(ctx.lessonId,text,label,'lesson_source');d.remove();alert('Đã lưu tài liệu vào bài học.')}catch(e){b.disabled=false;b.textContent='Lưu vào bài học này';alert(e.message)}};
+  d.querySelector('#save').onclick=async()=>{const b=d.querySelector('#save');b.disabled=true;b.textContent='Đang lưu…';try{await saveOriginalAttachments(ctx.lessonId,ctx.files,'lesson_source');const text=d.querySelector('#mx').value.trim();const label=d.querySelector('#mt').value.trim()||'tai-lieu';await saveTranscriptAttachment(ctx.lessonId,text,label,'lesson_source');d.remove();alert('Đã lưu tài liệu vào bài học.')}catch(e){b.disabled=false;b.textContent='Lưu vào bài học này';alert(e?.message||String(e))}};
 }
 
 function mediaQuestionsPreview(v,ctx){
   const qs=Array.isArray(v?.questions)?v.questions:[],lesson=S.lessons.find(x=>x.id===ctx.lessonId);const transcript=v?.source_transcript||'';
-  const d=overlay(`<div class="modal" style="width:min(920px,96vw)"><button class="x">×</button><h2>Xem trước câu hỏi trắc nghiệm</h2><p class="muted">Sẽ gắn ${qs.length} câu vào <b>${esc(lesson?.title||'')}</b>. File gốc cũng sẽ được lưu cùng bài học.</p>${qs.map((q,i)=>{const o=q.options||{};return `<div class="question"><b>Câu ${i+1}. ${esc(q.question_text||'')}</b><div class="opts">${['A','B','C','D'].map(k=>`<div class="opt">${k}. ${esc(o[k]||'')}</div>`).join('')}</div><div class="muted">Đáp án: ${esc(q.correct_option||'')} · ${esc(q.explanation||'')}</div></div>`}).join('')||'<div class="error">Không nhận diện được câu hỏi nào.</div>'}<div class="modalActions"><button class="btn gold" id="save" ${qs.length?'':'disabled'}>Lưu câu hỏi + file nguồn</button></div></div>`);
-  d.querySelector('#save')?.addEventListener('click',async()=>{const b=d.querySelector('#save');b.disabled=true;b.textContent='Đang lưu…';try{for(let i=0;i<qs.length;i++){const z=qs[i],o=Array.isArray(z.options)?Object.fromEntries(['A','B','C','D'].map((k,j)=>[k,z.options[j]||''])):(z.options||{});await adm('save_question',{question:{lesson_id:ctx.lessonId,question_text:z.question_text||'',options:o,sort_order:i+1,scripture_reference:z.scripture_reference||''},answer:{correct_option:z.correct_option||'',explanation:z.explanation||'',scripture_reference:z.scripture_reference||''}})}await saveOriginalAttachments(ctx.lessonId,ctx.files,'question_source');await saveTranscriptAttachment(ctx.lessonId,transcript,'nguon-cau-hoi','question_source');d.remove();await load();go('quiz')}catch(e){b.disabled=false;b.textContent='Lưu câu hỏi + file nguồn';alert(e.message)}});
+  const d=overlay(`<div class="modal" style="width:min(920px,96vw)"><button class="x">×</button><h2>Xem trước câu hỏi trắc nghiệm</h2><p class="muted">Sẽ gắn ${qs.length} câu vào <b>${esc(lesson?.title||'')}</b>. File gốc cũng sẽ được lưu cùng bài học.</p>${qs.map((q,i)=>{const o=q.options||{};const ans=q.correct_option?`Đáp án: ${esc(q.correct_option)}${q.explanation?' · '+esc(q.explanation):''}`:'Chưa có đáp án — sẽ bổ sung khi tải file đáp án.';return `<div class="question"><b>Câu ${i+1}. ${esc(q.question_text||'')}</b><div class="opts">${['A','B','C','D'].map(k=>`<div class="opt">${k}. ${esc(o[k]||'')}</div>`).join('')}</div><div class="muted">${ans}</div></div>`}).join('')||'<div class="error">Không nhận diện được câu hỏi nào.</div>'}<div class="modalActions"><button class="btn gold" id="save" ${qs.length?'':'disabled'}>Lưu câu hỏi + file nguồn</button></div></div>`);
+  d.querySelector('#save')?.addEventListener('click',async()=>{
+    const b=d.querySelector('#save');b.disabled=true;b.textContent='Đang lưu…';
+    try{
+      for(let i=0;i<qs.length;i++){
+        const z=qs[i],o=Array.isArray(z.options)?Object.fromEntries(['A','B','C','D'].map((k,j)=>[k,z.options[j]||''])):(z.options||{});
+        const payload={question:{lesson_id:ctx.lessonId,question_text:z.question_text||'',options:o,sort_order:i+1,scripture_reference:z.scripture_reference||''}};
+        if(['A','B','C','D'].includes(String(z.correct_option||'').trim().toUpperCase())){
+          payload.answer={correct_option:String(z.correct_option).trim().toUpperCase(),explanation:z.explanation||'',scripture_reference:z.scripture_reference||''};
+        }
+        await adm('save_question',payload);
+      }
+      await saveOriginalAttachments(ctx.lessonId,ctx.files,'question_source');
+      await saveTranscriptAttachment(ctx.lessonId,transcript,'nguon-cau-hoi','question_source');
+      d.remove();await load();go('quiz');
+    }catch(e){b.disabled=false;b.textContent='Lưu câu hỏi + file nguồn';alert(e?.message||String(e))}
+  });
 }
 
 const _previewMediaBase=previewResult;
