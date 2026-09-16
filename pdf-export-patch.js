@@ -15,7 +15,7 @@ function openPrintablePdf(title,body){
   }catch(e){console.error('PDF export error',e);alert('Không thể tạo bản in PDF. Vui lòng tải lại trang rồi thử lại.');}
 }
 function normalizeOpts(o){
-  if(Array.isArray(o))return {A:o[0]||'',B:o[1]||'',C:o[2]||'',D:o[3]||''};
+  if(Array.isArray(o)){const x={};o.forEach((v,i)=>{if(v)x[String.fromCharCode(65+i)]=v});return x}
   return o&&typeof o==='object'?o:{};
 }
 function exportLessonPdf(){
@@ -31,7 +31,7 @@ function exportQuizPdf(){
   const l=S&&S.selected;if(!l){alert('Chưa chọn bài học.');return}
   const all=Array.isArray(S.questions)?S.questions:[];const qs=all.filter(q=>q&&q.lesson_id===l.id);
   if(!qs.length){alert('Bài học này chưa có câu hỏi trắc nghiệm.');return}
-  const body=`<h1>Bài trắc nghiệm</h1><div class="meta">${pdfEsc(l.title||'')}</div>${l.scripture_reference?`<div style="margin-bottom:16px"><b>Phân đoạn:</b> ${pdfEsc(l.scripture_reference)}</div>`:''}<div style="margin:12px 0 24px"><b>Họ và tên:</b> ________________________________ &nbsp;&nbsp; <b>Ngày:</b> ____________</div>${qs.map((q,i)=>{const o=normalizeOpts(q.options);return `<div class="question"><b>Câu ${i+1}. ${pdfEsc(q.question_text||'')}</b>${['A','B','C','D'].map(k=>o[k]?`<div class="option">${k}. ${pdfEsc(o[k])}</div>`:'').join('')}</div>`}).join('')}<div class="footer-note">Thư Viện Thần Học · Phiếu trắc nghiệm</div>`;
+  const body=`<h1>Bài trắc nghiệm</h1><div class="meta">${pdfEsc(l.title||'')}</div>${l.scripture_reference?`<div style="margin-bottom:16px"><b>Phân đoạn:</b> ${pdfEsc(l.scripture_reference)}</div>`:''}<div style="margin:12px 0 24px"><b>Họ và tên:</b> ________________________________ &nbsp;&nbsp; <b>Ngày:</b> ____________</div>${qs.map((q,i)=>{const o=normalizeOpts(q.options);const keys=Object.keys(o).filter(k=>/^[A-Z]$/.test(k)).sort();return `<div class="question"><b>Câu ${i+1}. ${pdfEsc(q.question_text||'')}</b>${keys.map(k=>o[k]?`<div class="option">${k}. ${pdfEsc(o[k])}</div>`:'').join('')}</div>`}).join('')}<div class="footer-note">Thư Viện Thần Học · Phiếu trắc nghiệm</div>`;
   openPrintablePdf((l.title||'Bài học')+' - Trắc nghiệm',body);
  }catch(e){console.error(e);alert('Không thể xuất PDF trắc nghiệm.');}
 }
