@@ -1,7 +1,7 @@
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b2346"><title>Thư Viện Thần Học</title><style>html,body{margin:0;background:#0b2346;color:white;font-family:system-ui;height:100%}#loading{height:100%;display:grid;place-items:center;text-align:center;padding:20px}small{opacity:.75}</style></head><body><div id="loading"><div><h2>Thư Viện Thần Học</h2><small>Đang mở thư viện…</small></div></div><script>
 (async()=>{
   const stamp=Date.now();
-  const files=['ui-patch.js','outline-patch.js','content-routing-patch.js','media-processing-patch.js','quiz-answer-patch.js','quiz-admin-patch.js','pdf-export-patch.js','quiz-detail-toolbar-static.js','lesson-management-patch.js','premium-ui-patch.js','faith-content-patch.js','faith-story-v2-patch.js','auto-cover-patch.js','admin-cost-loader.js','pwa-install-patch.js','home-folders-patch.js','lesson-depth-patch.js'];
+  const files=['ui-patch.js','outline-patch.js','content-routing-patch.js','media-processing-patch.js','quiz-answer-patch.js','quiz-admin-patch.js','pdf-export-patch.js','quiz-detail-toolbar-static.js','lesson-management-patch.js','premium-ui-patch.js','faith-content-patch.js','faith-story-v2-patch.js','auto-cover-patch.js','admin-cost-loader.js','pwa-install-patch.js','home-folders-patch.js','lesson-depth-patch.js','lesson-depth-display-patch.js'];
   try{
     let h=await (await fetch('./base.html?v='+stamp,{cache:'no-store'})).text();
     h=h.replaceAll('https://than-theology-ai-buichithan221199-9344.vercel.app/api/process','https://cikobcunfmnvlyutlyai.supabase.co/functions/v1/theology-process');
