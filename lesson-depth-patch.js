@@ -6,7 +6,7 @@
   `;if(!document.getElementById(style.id))document.head.appendChild(style);
 
   window.openScriptureComposer=function(){
-    const d=overlay(`<div class="modal"><button class="x">×</button><h2>Soạn bài học từ Kinh Thánh</h2><p class="muted">Bài học sẽ đi sâu vào Kinh Thánh, đời sống thực tế, tự xét và áp dụng; cuối bài luôn có Tóm tắt các ý chính, Bài học rút ra và Lời cầu nguyện.</p><div class="field"><label>Phân đoạn / nội dung Kinh Thánh</label><textarea id="scriptureText" rows="14" placeholder="Ví dụ: Công vụ 13:1–3, hoặc dán nguyên văn phân đoạn..."></textarea></div><div id="err"></div><div class="modalActions"><button class="btn gold" id="go">Soạn bài & xem trước</button></div></div>`);
+    const d=overlay(`<div class="modal"><button class="x">×</button><h2>Soạn bài học từ Kinh Thánh</h2><p class="muted">Bài học sẽ đi sâu vào Kinh Thánh, đời sống thực tế, tự xét và áp dụng; cuối bài luôn có Tóm tắt các ý chính, Bài học rút ra và Lời cầu nguyện; phần trắc nghiệm luôn nằm cuối cùng.</p><div class="field"><label>Phân đoạn / nội dung Kinh Thánh</label><textarea id="scriptureText" rows="14" placeholder="Ví dụ: Công vụ 13:1–3, hoặc dán nguyên văn phân đoạn..."></textarea></div><div id="err"></div><div class="modalActions"><button class="btn gold" id="go">Soạn bài & xem trước</button></div></div>`);
     d.querySelector('#go').onclick=async()=>{
       const text=d.querySelector('#scriptureText').value.trim();
       if(!text){d.querySelector('#err').innerHTML='<div class="error">Chưa nhập phân đoạn Kinh Thánh.</div>';return}
@@ -21,21 +21,25 @@
     };
   };
 
-  // Ordinary lessons end with one clean closing sequence:
-  // Tóm tắt các ý chính -> Bài học rút ra -> Lời cầu nguyện.
+  // Ordinary lessons end in this order:
+  // Tóm tắt các ý chính -> Bài học rút ra -> Lời cầu nguyện -> Câu hỏi trắc nghiệm.
   const oldDetailDepth=detail;
   detail=function(){
     let h=oldDetailDepth();
     const l=S.selected;
     if(!l||['faith_story','short_prayer'].includes(l.source_kind))return h;
 
-    // Remove the older duplicated placements before adding the closing section.
+    // Remove older duplicated placements before rebuilding the final sequence.
     if(l.summary)h=h.replace(`<h3>Tóm tắt</h3><p>${esc(l.summary)}</p>`,'');
     if(l.application)h=h.replace(`<h3>Áp dụng chung</h3><p>${esc(l.application)}</p>`,'');
     if(l.prayer)h=h.replace(`<h3>Lời cầu nguyện</h3><p>${esc(l.prayer)}</p>`,'');
 
-    if(!l.summary&&!l.application&&!l.prayer)return h;
     const ending=`<section class="lesson-ending"><div class="ending-kicker">Cuối bài</div>${l.summary?`<h3>Tóm tắt các ý chính</h3><div class="lesson-summary-box">${esc(l.summary)}</div>`:''}${l.application?`<h3>Bài học rút ra</h3><div class="lesson-takeaway-box">${esc(l.application)}</div>`:''}${l.prayer?`<h3>Lời cầu nguyện</h3><div class="lesson-prayer-box">${esc(l.prayer)}</div>`:''}</section>`;
+    if(!ending)return h;
+
+    // Insert the closing section immediately BEFORE the quiz heading so the quiz is always last.
+    const quizHeading='<h3>Câu hỏi trắc nghiệm</h3>';
+    if(h.includes(quizHeading))return h.replace(quizHeading,ending+quizHeading);
     return h.replace('</article>',ending+'</article>');
   };
 })();
