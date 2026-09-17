@@ -1,7 +1,7 @@
 // Production security hardening: attach admin PIN to protected endpoints, keep private data out of reader mode, and load a full admin snapshot only after verification.
 (function(){
   const protectedSlugs=[
-    '/functions/v1/theology-admin','/functions/v1/theology-process','/functions/v1/theology-process-standard',
+    '/functions/v1/theology-admin','/functions/v1/theology-process','/functions/v1/theology-process-standard','/functions/v1/theology-audio',
     '/functions/v1/theology-scripture-lesson','/functions/v1/theology-devotional','/functions/v1/theology-image',
     '/functions/v1/theology-ai-cost','/functions/v1/theology-deepen-existing'
   ];
