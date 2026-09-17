@@ -41,12 +41,14 @@
     const rows=[];for(const q of qs){let a=S.revealed?.[q.id]||null;if(!a){try{const r=await adm('reveal_answer',{question_id:q.id});a=r?.answer||null;if(a)S.revealed[q.id]=a}catch{}}rows.push({...q,answer:a||{correct_option:'',explanation:''}})}
     let payload={lesson:{title:l.title,scripture_reference:l.scripture_reference},questions:rows},box=null;try{if(lang==='en'){box=waitBox('Đang dịch bản đáp án sang English…');payload=await translatePayload(payload,'quiz_answers')}box?.remove();openPrintablePdf((payload.lesson?.title||l.title||'Quiz')+(lang==='en'?' - Quiz Answer Key':' - Trắc nghiệm có đáp án'),renderQuiz(payload.lesson,payload.questions,lang,true))}catch(e){box?.remove();alert(e.message||String(e))}
   }
-  window.exportLessonPdf=function(){choosePdfLanguage(lessonExport)};
-  window.exportQuizPdf=function(){choosePdfLanguage(quizExport)};
-  window.exportQuizAnswerPdf=function(){choosePdfLanguage(quizAnswerExport)};
 
-  const oldDev=window.exportDevotionalPdf;
-  window.exportDevotionalPdf=function(kind){
+  // Use unique global handlers so inline onclick always resolves to the bilingual exporter,
+  // regardless of older global function declarations loaded before this patch.
+  window.exportLessonPdfBilingual=function(){choosePdfLanguage(lessonExport)};
+  window.exportQuizPdfBilingual=function(){choosePdfLanguage(quizExport)};
+  window.exportQuizAnswerPdfBilingual=function(){choosePdfLanguage(quizAnswerExport)};
+
+  window.exportDevotionalPdfBilingual=function(kind){
     choosePdfLanguage(async lang=>{
       const l=S?.selected;if(!l)return;let data=l,box=null;try{if(lang==='en'){box=waitBox('Đang dịch sang English…');data=await translatePayload(l,kind||l.source_kind||'devotional')}
         box?.remove();const en=lang==='en',isStory=kind==='faith_story';const image=data.cover_image_url?`<img src="${pdfEsc(data.cover_image_url)}" style="width:100%;height:260px;object-fit:cover;border-radius:12px;margin-bottom:18px">`:'';
@@ -54,5 +56,25 @@
         openPrintablePdf((data.title||'')+(en?' - English':' - Tiếng Việt'),body);
       }catch(e){box?.remove();alert(e.message||String(e))}
     });
+  };
+
+  // Rewrite the actual rendered buttons so they call the unique bilingual handlers.
+  const oldDetailLang=detail;
+  detail=function(){
+    let h=oldDetailLang();
+    h=h.replaceAll('onclick="exportLessonPdf()"','onclick="exportLessonPdfBilingual()"');
+    h=h.replaceAll('onclick="exportQuizPdf()"','onclick="exportQuizPdfBilingual()"');
+    h=h.replaceAll('onclick="exportQuizAnswerPdf()"','onclick="exportQuizAnswerPdfBilingual()"');
+    return h;
+  };
+
+  const oldViewLang=view;
+  view=function(){
+    let h=oldViewLang();
+    if(typeof h==='string'){
+      h=h.replace(/onclick="exportDevotionalPdf\('faith_story'\)"/g,'onclick="exportDevotionalPdfBilingual(\'faith_story\')"');
+      h=h.replace(/onclick="exportDevotionalPdf\('short_prayer'\)"/g,'onclick="exportDevotionalPdfBilingual(\'short_prayer\')"');
+    }
+    return h;
   };
 })();
