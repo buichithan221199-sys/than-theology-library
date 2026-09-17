@@ -1,16 +1,17 @@
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0b2346"><title>Thư Viện Thần Học</title><style>html,body{margin:0;background:#0b2346;color:white;font-family:system-ui;height:100%}#loading{height:100%;display:grid;place-items:center;text-align:center;padding:20px}small{opacity:.75}</style></head><body><div id="loading"><div><h2>Thư Viện Thần Học</h2><small>Đang mở thư viện…</small></div></div><script>
 (async()=>{
   const stamp=Date.now();
-  const files=['ui-patch.js','outline-patch.js','content-routing-patch.js','media-processing-patch.js','quiz-answer-patch.js','quiz-admin-patch.js','pdf-export-patch.js','quiz-detail-toolbar-static.js','lesson-management-patch.js','premium-ui-patch.js','faith-content-patch.js','auto-cover-patch.js','admin-cost-loader.js'];
+  const files=['ui-patch.js','outline-patch.js','content-routing-patch.js','media-processing-patch.js','quiz-answer-patch.js','quiz-admin-patch.js','pdf-export-patch.js','quiz-detail-toolbar-static.js','lesson-management-patch.js','premium-ui-patch.js','faith-content-patch.js','auto-cover-patch.js','admin-cost-loader.js','pwa-install-patch.js'];
   try{
     let h=await (await fetch('./base.html?v='+stamp,{cache:'no-store'})).text();
     h=h.replaceAll('https://than-theology-ai-buichithan221199-9344.vercel.app/api/process','https://cikobcunfmnvlyutlyai.supabase.co/functions/v1/theology-process');
     h=h.replace(/<link rel="manifest"[^>]*>/g,'');
     h=h.replace(/if\('serviceWorker'in navigator\)[\s\S]*?register\([^)]*\)[^;]*;/g,'');
+    h=h.replace('</head>','<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" href="./app-icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="./app-icon.svg"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Thần Học"></head>');
     const codes=[];
     for(const f of files){const r=await fetch('./'+f+'?v='+stamp,{cache:'no-store'});if(!r.ok)throw new Error('Không tải được '+f);codes.push(await r.text())}
     const safe=s=>s.replace(/<\/script/gi,'<\\/script');
-    const bundle=codes.map((c,i)=>`<script data-bundle="${files[i]}">${safe(c)}<\/script>`).join('')+`<script>try{if(typeof render==='function')render()}catch(e){console.error(e)}<\/script>`;
+    const bundle=codes.map((c,i)=>`<script data-bundle="${files[i]}">${safe(c)}<\/script>`).join('')+`<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(console.error))}try{if(typeof render==='function')render()}catch(e){console.error(e)}<\/script>`;
     h=h.replace('</body>',bundle+'</body>');
     document.open();document.write(h);document.close();
   }catch(e){document.body.innerHTML='<div id="loading"><div><h2>Không mở được ứng dụng</h2><small>'+String(e.message||e)+'</small></div></div>'}
