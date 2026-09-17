@@ -13,8 +13,9 @@
   };
 })();
 
-// Load management, premium UI, faith/prayer features, then automatic covers.
-(async()=>{
+// htmlpreview/live wrappers still load the late patches dynamically.
+// The Supabase live bundle sets __THEOLOGY_BUNDLED__ and injects them directly.
+if(!window.__THEOLOGY_BUNDLED__)(async()=>{
   try{
     const base='https://raw.githubusercontent.com/buichithan221199-sys/than-theology-library/main/';
     const mg=await fetch(base+'lesson-management-patch.js?v='+Date.now(),{cache:'no-store'});if(!mg.ok)throw new Error('Không tải được công cụ quản lý bài học');
