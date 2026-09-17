@@ -56,14 +56,26 @@ jobs:
           set -e
           rm -rf _site
           mkdir -p _site
-          cp -a *.js *.webmanifest *.svg _site/ 2>/dev/null || true
           cp index.html _site/base.html
           cp static-app.html _site/index.html
+          cp manifest.webmanifest app-icon.svg service-worker.js _site/
+          python3 - <<'PY'
+          import pathlib, re, ast, shutil
+          text=pathlib.Path('static-app.html').read_text(encoding='utf-8')
+          m=re.search(r"const files=\[(.*?)\];", text, re.S)
+          files=ast.literal_eval('['+m.group(1)+']')
+          for f in files:
+              shutil.copy2(f, pathlib.Path('_site')/f)
+          print('Copied production assets:', len(files))
+          PY
           test -f _site/index.html
           test -f _site/base.html
           test -f _site/security-patch.js
           test -f _site/pdf-language-patch.js
+          test -f _site/print-stability-patch.js
           test -f _site/service-worker.js
+          test ! -f _site/admin-cost-loader.js
+          test ! -f _site/lesson-depth-display-patch.js
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
