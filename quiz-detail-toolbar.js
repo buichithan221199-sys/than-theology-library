@@ -12,3 +12,9 @@
     return html+bar;
   };
 })();
+
+// Load the full lesson/folder management patch after the existing detail toolbar.
+fetch('https://raw.githubusercontent.com/buichithan221199-sys/than-theology-library/main/lesson-management-patch.js?v='+Date.now(),{cache:'no-store'})
+  .then(r=>{if(!r.ok)throw new Error('Không tải được công cụ quản lý bài học');return r.text()})
+  .then(code=>(0,eval)(code))
+  .catch(err=>console.error('lesson-management-patch',err));
