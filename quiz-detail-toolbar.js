@@ -13,7 +13,7 @@
   };
 })();
 
-// Load management first, then the premium visual layer, both inside the app scope.
+// Load management, premium UI, then faith/prayer features inside the app scope.
 (async()=>{
   try{
     const base='https://raw.githubusercontent.com/buichithan221199-sys/than-theology-library/main/';
@@ -21,6 +21,8 @@
     eval(await mg.text());
     const ui=await fetch(base+'premium-ui-patch.js?v='+Date.now(),{cache:'no-store'});if(!ui.ok)throw new Error('Không tải được giao diện mới');
     eval(await ui.text());
+    const faith=await fetch(base+'faith-content-patch.js?v='+Date.now(),{cache:'no-store'});if(!faith.ok)throw new Error('Không tải được Câu chuyện đức tin / Lời cầu nguyện');
+    eval(await faith.text());
     if(typeof render==='function')render();
   }catch(err){console.error('theology patches',err)}
 })();
