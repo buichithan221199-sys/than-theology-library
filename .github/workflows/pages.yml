@@ -86,3 +86,37 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Post-deploy browser smoke test
+        run: |
+          set -e
+          URL="${{ steps.deployment.outputs.page_url }}?smoke=${GITHUB_SHA}"
+          echo "Testing $URL"
+          ok=0
+          for i in $(seq 1 12); do
+            if curl -fsS --max-time 15 "$URL" >/tmp/theology-root.html; then ok=1; break; fi
+            sleep 5
+          done
+          test "$ok" = "1"
+          grep -q 'security-patch.js' /tmp/theology-root.html
+          grep -q 'pdf-language-patch.js' /tmp/theology-root.html
+          grep -q 'mobile-polish-patch.js' /tmp/theology-root.html
+          grep -q 'print-stability-patch.js' /tmp/theology-root.html
+
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROME" ]; then
+            echo "::warning::Chrome/Chromium not available; HTTP smoke checks passed."
+            exit 0
+          fi
+          "$CHROME" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=12000 --dump-dom "$URL" >/tmp/theology-dom.html 2>/tmp/chrome-stderr.log || {
+            cat /tmp/chrome-stderr.log
+            exit 1
+          }
+          grep -q 'class="app"' /tmp/theology-dom.html
+          grep -q 'folder-tile' /tmp/theology-dom.html
+          grep -q 'Câu chuyện đức tin' /tmp/theology-dom.html
+          if grep -q 'Không tải được dữ liệu' /tmp/theology-dom.html; then
+            echo 'Rendered app reports a data loading error.'
+            exit 1
+          fi
+          echo 'Browser smoke test passed.'
