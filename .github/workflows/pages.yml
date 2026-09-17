@@ -23,12 +23,48 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate JavaScript syntax
+        run: |
+          set -e
+          for f in *.js; do
+            echo "Checking $f"
+            node --check "$f"
+          done
+
+      - name: Validate manifest and public patch references
+        run: |
+          set -e
+          python3 - <<'PY'
+          import json, pathlib, re, ast
+          json.load(open('manifest.webmanifest', encoding='utf-8'))
+          text=pathlib.Path('static-app.html').read_text(encoding='utf-8')
+          m=re.search(r"const files=\[(.*?)\];", text, re.S)
+          if not m:
+              raise SystemExit('Cannot find static-app patch list')
+          files=ast.literal_eval('['+m.group(1)+']')
+          missing=[f for f in files if not pathlib.Path(f).is_file()]
+          if missing:
+              raise SystemExit('Missing patch files: '+', '.join(missing))
+          if len(files)!=len(set(files)):
+              raise SystemExit('Duplicate patch names in static-app.html')
+          print(f'Validated {len(files)} production patch files')
+          PY
+
       - name: Build static site
         run: |
+          set -e
+          rm -rf _site
           mkdir -p _site
           cp -a *.js *.webmanifest *.svg _site/ 2>/dev/null || true
           cp index.html _site/base.html
           cp static-app.html _site/index.html
+          test -f _site/index.html
+          test -f _site/base.html
+          test -f _site/security-patch.js
+          test -f _site/pdf-language-patch.js
+          test -f _site/service-worker.js
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
