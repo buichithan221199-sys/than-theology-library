@@ -13,8 +13,14 @@
   };
 })();
 
-// Load the lesson/folder management patch inside the same app scope.
-fetch('https://raw.githubusercontent.com/buichithan221199-sys/than-theology-library/main/lesson-management-patch.js?v='+Date.now(),{cache:'no-store'})
-  .then(r=>{if(!r.ok)throw new Error('Không tải được công cụ quản lý bài học');return r.text()})
-  .then(code=>{eval(code); if(typeof render==='function') render();})
-  .catch(err=>console.error('lesson-management-patch',err));
+// Load management first, then the premium visual layer, both inside the app scope.
+(async()=>{
+  try{
+    const base='https://raw.githubusercontent.com/buichithan221199-sys/than-theology-library/main/';
+    const mg=await fetch(base+'lesson-management-patch.js?v='+Date.now(),{cache:'no-store'});if(!mg.ok)throw new Error('Không tải được công cụ quản lý bài học');
+    eval(await mg.text());
+    const ui=await fetch(base+'premium-ui-patch.js?v='+Date.now(),{cache:'no-store'});if(!ui.ok)throw new Error('Không tải được giao diện mới');
+    eval(await ui.text());
+    if(typeof render==='function')render();
+  }catch(err){console.error('theology patches',err)}
+})();
