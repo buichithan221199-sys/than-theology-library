@@ -19,7 +19,7 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -112,11 +112,43 @@ jobs:
             cat /tmp/chrome-stderr.log
             exit 1
           }
-          grep -q 'class="app"' /tmp/theology-dom.html
-          grep -q 'folder-tile' /tmp/theology-dom.html
-          grep -q 'Câu chuyện đức tin' /tmp/theology-dom.html
-          if grep -q 'Không tải được dữ liệu' /tmp/theology-dom.html; then
-            echo 'Rendered app reports a data loading error.'
-            exit 1
-          fi
-          echo 'Browser smoke test passed.'
+
+          # Parse actual rendered elements/text while ignoring <script>/<style> source.
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+
+          class RenderedDOM(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.skip = 0
+                  self.classes = []
+                  self.text = []
+              def handle_starttag(self, tag, attrs):
+                  if tag in ('script','style'):
+                      self.skip += 1
+                  attrs = dict(attrs)
+                  if 'class' in attrs:
+                      self.classes.extend(attrs['class'].split())
+              def handle_endtag(self, tag):
+                  if tag in ('script','style') and self.skip:
+                      self.skip -= 1
+              def handle_data(self, data):
+                  if not self.skip:
+                      t = ' '.join(data.split())
+                      if t:
+                          self.text.append(t)
+
+          p = RenderedDOM()
+          p.feed(Path('/tmp/theology-dom.html').read_text(encoding='utf-8', errors='replace'))
+          visible = ' '.join(p.text)
+          if 'app' not in p.classes:
+              raise SystemExit('Rendered app shell not found')
+          if 'folder-tile' not in p.classes:
+              raise SystemExit('No rendered folder tile found; public data may not have loaded')
+          if 'Không tải được dữ liệu' in visible:
+              raise SystemExit('Visible app reports a data loading error')
+          if 'Thư mục nội dung' not in visible:
+              raise SystemExit('Rendered home folder section not found')
+          print('Browser DOM smoke test passed.')
+          PY
