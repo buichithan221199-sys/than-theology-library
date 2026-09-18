@@ -48,6 +48,7 @@ async function openAiCost(){
   S.tab='ai-cost';S.selected=null;S.aiUsage=null;render();
   try{S.aiUsage=await costAdmin('summary');render()}catch(e){S.aiUsage={error:e.message};render()}
 }
+window.openAiCost=openAiCost;
 async function setAiFunded(){
   const current=Number(S.aiUsage?.summary?.funded_usd||0);
   const raw=prompt('Nhập TỔNG số tiền API bạn đã nạp để app tính số dư còn lại (USD):',current?String(current):'5.00');
@@ -55,7 +56,7 @@ async function setAiFunded(){
   const v=Number(raw);if(!Number.isFinite(v)||v<0){alert('Số tiền không hợp lệ.');return}
   try{await costAdmin('set_budget',{funded_usd:v});await openAiCost()}catch(e){alert(e.message)}
 }
-function aiCostView(){
+window.setAiFunded=setAiFunded;\nfunction aiCostView(){
   if(!S.pin)return '<div class="panel empty">Mục này chỉ dành cho quản trị.</div>';
   if(!S.aiUsage)return '<div class="panel empty">Đang tải dữ liệu chi phí AI…</div>';
   if(S.aiUsage.error)return `<div class="panel"><div class="error">${esc(S.aiUsage.error)}</div></div>`;
