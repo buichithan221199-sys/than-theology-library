@@ -24,9 +24,20 @@ function writeMeta(m){ ensureDraftDir(); fs.writeFileSync(metaPath(),JSON.string
 function safeBase(name){ return String(name||'PureRec_Recording').replace(/[\\/:*?"<>|]+/g,'_').trim() || 'PureRec_Recording'; }
 function draftState(){
   const m=readMeta();
-  m.segments=m.segments.filter(s=>{ try{return fs.statSync(s.path).size>0}catch{return false} });
-  writeMeta(m);
-  return {exists:m.segments.length>0,durationMs:m.segments.reduce((n,s)=>n+(s.durationMs||0),0),bytes:m.segments.reduce((n,s)=>{try{return n+fs.statSync(s.path).size}catch{return n}},0),outputDir:m.outputDir};
+  // Never delete the segment that is actively being recorded just because it is
+  // still 0 bytes before MediaRecorder emits its first chunk.
+  const kept=m.segments.filter(s=>{
+    if(s.id===state.currentSegment) return true;
+    try{return fs.statSync(s.path).size>0}catch{return false}
+  });
+  if(kept.length!==m.segments.length){m.segments=kept;writeMeta(m);}
+  const bytes=kept.reduce((n,s)=>{try{return n+fs.statSync(s.path).size}catch{return n}},0);
+  return {
+    exists: kept.length>0,
+    durationMs: kept.reduce((n,s)=>n+(s.durationMs||0),0),
+    bytes,
+    outputDir:m.outputDir
+  };
 }
 function clearDraft(){
   try{fs.rmSync(draftDir(),{recursive:true,force:true});}catch{}
