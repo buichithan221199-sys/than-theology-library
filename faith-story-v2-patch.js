@@ -18,7 +18,7 @@
       <div class="field"><label>Tiêu đề</label><input id="t" value="${esc(v.title||'')}"></div>
       <div class="field"><label>Phân đoạn Kinh Thánh</label><input id="sr" value="${esc(v.scripture_reference||'')}"></div>
       ${v.key_verse_1925?`<div class="field"><label>Câu gốc · Bản 1925</label><textarea id="kv" rows="3">${esc(v.key_verse_1925)}</textarea></div>`:''}
-      <div class="field"><label>${isStory?'Câu chuyện đức tin · người thật · sự kiện thật · địa điểm thật':'Suy ngẫm ngắn'}</label><textarea id="sum" rows="${isStory?16:6}">${esc(v.summary||'')}</textarea></div>
+      <div class="field"><label>${isStory?'Câu chuyện đức tin · người thật · sự kiện thật · địa điểm thật · tối đa 500 chữ':'Suy ngẫm ngắn'}</label><textarea id="sum" rows="${isStory?16:6}">${esc(v.summary||'')}</textarea></div>
       ${isStory?`<div class="field"><label>Bài học rút ra · đúng 1 câu</label><textarea id="app" rows="3">${esc(v.application||'')}</textarea></div>`:''}
       <div class="field"><label>Lời cầu nguyện ngắn</label><textarea id="pr" rows="7">${esc(v.prayer||'')}</textarea></div>
       <div id="err"></div><div class="modalActions"><button class="btn gold" id="save">Lưu + tạo ảnh minh họa</button></div></div>`);
@@ -26,7 +26,7 @@
       const b=d.querySelector('#save');
       try{
         b.disabled=true;b.textContent='Đang lưu…';
-        const lesson={title:d.querySelector('#t').value.trim(),summary:d.querySelector('#sum').value.trim(),scripture_reference:d.querySelector('#sr').value.trim(),key_verse_reference:v.key_verse_reference||'',key_verse_1925:d.querySelector('#kv')?.value.trim()||'',subtitle:v.subtitle||'',teacher:'',introduction:'',background:'',transition_text:'',application:isStory?(d.querySelector('#app')?.value.trim()||''):'',prayer:d.querySelector('#pr').value.trim(),main_content:[],reflection_questions:[],tags:v.tags||[],source_kind:kind,is_published:true,folder_slug:isStory?'faith-stories':'short-prayers'};
+        const summary=d.querySelector('#sum').value.trim();if(isStory&&summary.split(/\\s+/).filter(Boolean).length>500){throw Error('Câu chuyện đức tin tối đa 500 chữ. Vui lòng rút ngắn trước khi lưu.')}const lesson={title:d.querySelector('#t').value.trim(),summary,scripture_reference:d.querySelector('#sr').value.trim(),key_verse_reference:v.key_verse_reference||'',key_verse_1925:d.querySelector('#kv')?.value.trim()||'',subtitle:v.subtitle||'',teacher:'',introduction:'',background:'',transition_text:'',application:isStory?(d.querySelector('#app')?.value.trim()||''):'',prayer:d.querySelector('#pr').value.trim(),main_content:[],reflection_questions:[],tags:v.tags||[],source_kind:kind,is_published:true,folder_slug:isStory?'faith-stories':'short-prayers'};
         const res=await adm('save_lesson',{lesson});
         d.remove();
         await makeCover(res.lesson,kind);
@@ -43,7 +43,7 @@
     const isStory=kind==='faith_story';
     const label=isStory?'Câu chuyện đức tin':'Lời cầu nguyện ngắn';
     const help=isStory
-      ?'AI sẽ dùng một câu chuyện có thật với người thật, sự kiện thật và địa điểm thật; không dùng nhân vật hư cấu hoặc tình huống tự dựng. Nếu không đủ chắc chắn về chi tiết ngoài Kinh Thánh, AI sẽ dùng một câu chuyện Kinh Thánh có nhân vật và địa điểm xác định.'
+      ?'AI sẽ dùng một câu chuyện có thật với người thật, sự kiện thật và địa điểm thật; không dùng nhân vật hư cấu hoặc tình huống tự dựng. Phần câu chuyện giới hạn tối đa 500 chữ. Nếu không đủ chắc chắn về chi tiết ngoài Kinh Thánh, AI sẽ dùng một câu chuyện Kinh Thánh có nhân vật và địa điểm xác định.'
       :'AI sẽ tạo suy ngẫm và lời cầu nguyện ngắn dựa trên Kinh Thánh.';
     const d=overlay(`<div class="modal"><button class="x">×</button><h2>Tạo ${label}</h2><p class="muted">${help}</p><div class="field"><label>Câu / phân đoạn Kinh Thánh</label><textarea id="src" rows="9" placeholder="Ví dụ: Thi Thiên 23:1-4 hoặc dán nguyên văn phân đoạn..."></textarea></div><div id="err"></div><div class="modalActions"><button class="btn gold" id="go">Tạo & xem trước</button></div></div>`);
     d.querySelector('#go').onclick=async()=>{
