@@ -30,6 +30,8 @@
       }
       return paths;
     }catch(e){await cleanupTempAudio(paths.filter(Boolean),pin);throw e}
+  }
+
   function mp3FrameLength(a,i){
     if(i+4>a.length||a[i]!==0xff||(a[i+1]&0xe0)!==0xe0)return 0;
     const version=(a[i+1]>>3)&3,layer=(a[i+1]>>1)&3,bitrateIndex=(a[i+2]>>4)&15,sampleIndex=(a[i+2]>>2)&3,padding=(a[i+2]>>1)&1;
@@ -127,8 +129,6 @@
     const seconds=meta.reduce((s,x)=>s+(Number(x?.duration_seconds)||0),0);
     const estimated=meta.reduce((s,x)=>s+(Number(x?.estimated_cost_usd)||0),0);
     return {transcript,audio_processing:{model:'gpt-transcribe',duration_seconds:seconds||null,estimated_cost_usd:Number(estimated.toFixed(6)),retained:false,segmented:true,segments:segments.length}};
-  }
-
   }
 
   // Long audio path: split locally, upload temporary private chunks, stream-transcribe them server-side,
