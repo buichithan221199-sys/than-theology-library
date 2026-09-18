@@ -31,13 +31,30 @@ window.PureRecNativeEvent=function(event){try{if(typeof event==='string')event=J
 };
 if(window.PureRecEvents?.subscribe)window.PureRecEvents.subscribe(e=>window.PureRecNativeEvent(e));
 async function start(fromDraft=false){if(bridge.kind==='web')return toast('Hãy dùng bản PureRec cài trên thiết bị để thu system audio ổn định.');if(fromDraft)state.elapsedBefore=state.draftDuration;else state.elapsedBefore=0;bridge.send(fromDraft?'continueDraft':'start');}
-async function pause(){state.elapsedBefore=elapsed();state.startedAt=null;setUI('paused');bridge.send('pause')}
+async function pause(){state.elapsedBefore=elapsed();state.startedAt=null;setUI('paused');await bridge.send('pause')}
 async function resume(){state.startedAt=Date.now();setUI('recording');bridge.send('resume')}
 function saveDraft(){bridge.send('saveDraft')}
 function preview(){bridge.send('preview')}
-function finish(){if(state.recording&&!state.paused)pause();$('#finishModal').classList.remove('hidden')}
-function exportFinal(mode){bridge.send('finalize',{format:$('#formatSelect').value,fileName:$('#fileName').value||'PureRec_Recording',shareMode:mode})}
-$('#startBtn').onclick=()=>start(false);$('#pauseBtn').onclick=pause;$('#resumeBtn').onclick=resume;$('#stopBtn').onclick=finish;$('#saveDraftBtn').onclick=saveDraft;$('#previewBtn').onclick=preview;
+async function finish(){
+  if(state.recording&&!state.paused){
+    toast('Đang hoàn tất dữ liệu ghi…');
+    await pause();
+  }
+  $('#finishModal').classList.remove('hidden');
+}
+let exporting=false;
+async function exportFinal(mode){
+  if(exporting)return;
+  exporting=true;
+  const save=$('#saveDeviceBtn'), email=$('#sendEmailBtn');
+  save.disabled=true; email.disabled=true;
+  try{
+    await bridge.send('finalize',{format:$('#formatSelect').value,fileName:$('#fileName').value||'PureRec_Recording',shareMode:mode});
+  }finally{
+    exporting=false; save.disabled=false; email.disabled=false;
+  }
+}
+$('#startBtn').onclick=()=>start(false);$('#pauseBtn').onclick=pause;$('#resumeBtn').onclick=resume;$('#stopBtn').onclick=()=>finish();$('#saveDraftBtn').onclick=saveDraft;$('#previewBtn').onclick=preview;
 $('#closePreview').onclick=()=>$('#previewModal').classList.add('hidden');$('#previewModal').onclick=e=>{if(e.target.id==='previewModal')$('#previewModal').classList.add('hidden')};
 $('#closeFinish').onclick=$('#cancelFinish').onclick=()=>$('#finishModal').classList.add('hidden');$('#finishModal').onclick=e=>{if(e.target.id==='finishModal')$('#finishModal').classList.add('hidden')};
 $('#saveDeviceBtn').onclick=()=>exportFinal('device');$('#sendEmailBtn').onclick=()=>exportFinal('email');
