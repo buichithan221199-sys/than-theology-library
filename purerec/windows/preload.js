@@ -47,7 +47,7 @@ async function endCapture(){
 }
 async function start(json){ try{await beginCapture(false);}catch(e){emit('error',{message:e.message||String(e)});} }
 async function continueDraft(json){ try{await beginCapture(true);}catch(e){emit('error',{message:e.message||String(e)});} }
-async function pause(json){ try{const s=await endCapture();emit('paused',{durationMs:s.durationMs||0});}catch(e){emit('error',{message:e.message||String(e)});} }
+async function pause(json){ try{const s=await endCapture();emit('paused',{durationMs:s.durationMs||0});return s;}catch(e){emit('error',{message:e.message||String(e)});throw e;} }
 async function resume(json){ try{await beginCapture(true);}catch(e){emit('error',{message:e.message||String(e)});} }
 async function saveDraft(json){ try{const s=await endCapture();emit('saved',{durationMs:s.durationMs||0});}catch(e){emit('error',{message:e.message||String(e)});} }
 async function preview(json){
@@ -58,9 +58,16 @@ async function deleteDraft(json){ try{await endCapture().catch(()=>{});const s=a
 async function finalize(json){
   try{
     const opts=typeof json==='string'?JSON.parse(json||'{}'):(json||{});
-    const s=await endCapture(); emit('paused',{durationMs:s.durationMs||0});
-    const out=await ipcRenderer.invoke('draft:finalize',opts); emit('exported',out);
-  }catch(e){emit('error',{message:e.message||String(e)});}
+    const s=await endCapture();
+    emit('paused',{durationMs:s.durationMs||0});
+    // endCapture waits for MediaRecorder.stop + every queued chunk write.
+    const out=await ipcRenderer.invoke('draft:finalize',opts);
+    emit('exported',out);
+    return out;
+  }catch(e){
+    emit('error',{message:e.message||String(e)});
+    throw e;
+  }
 }
 async function chooseSaveDir(){ const r=await ipcRenderer.invoke('draft:chooseDir'); return JSON.stringify(r); }
 
