@@ -43,16 +43,29 @@
     const isStory=kind==='faith_story';
     const label=isStory?'Câu chuyện đức tin':'Lời cầu nguyện ngắn';
     const help=isStory
-      ?'AI sẽ dùng một câu chuyện có thật với người thật, sự kiện thật và địa điểm thật; không dùng nhân vật hư cấu hoặc tình huống tự dựng. Phần câu chuyện giới hạn tối đa 500 chữ. Nếu không đủ chắc chắn về chi tiết ngoài Kinh Thánh, AI sẽ dùng một câu chuyện Kinh Thánh có nhân vật và địa điểm xác định.'
+      ?'Tạo theo Kinh Thánh hoặc theo chủ đề. Dù chọn cách nào, câu chuyện vẫn phải là người thật · sự kiện thật · địa điểm thật và tối đa 500 chữ.'
       :'AI sẽ tạo suy ngẫm và lời cầu nguyện ngắn dựa trên Kinh Thánh.';
-    const d=overlay(`<div class="modal"><button class="x">×</button><h2>Tạo ${label}</h2><p class="muted">${help}</p><div class="field"><label>Câu / phân đoạn Kinh Thánh</label><textarea id="src" rows="9" placeholder="Ví dụ: Thi Thiên 23:1-4 hoặc dán nguyên văn phân đoạn..."></textarea></div><div id="err"></div><div class="modalActions"><button class="btn gold" id="go">Tạo & xem trước</button></div></div>`);
+    const storyMode=isStory?`<div class="field"><label>Tạo câu chuyện theo</label><select id="storyMode"><option value="scripture">Theo câu / phân đoạn Kinh Thánh</option><option value="topic">Theo chủ đề</option></select></div>`:'';
+    const scriptureBox=`<div class="field" id="scriptureBox"><label>Câu / phân đoạn Kinh Thánh</label><textarea id="src" rows="8" placeholder="Ví dụ: Thi Thiên 23:1-4 hoặc dán nguyên văn phân đoạn..."></textarea></div>`;
+    const topicBox=isStory?`<div class="field hidden" id="topicBox"><label>Chủ đề</label><textarea id="topic" rows="5" placeholder="Ví dụ: tha thứ, kiên trì, đức tin khi chờ đợi, khi bị hiểu lầm, trung tín trong thử thách..."></textarea><div class="muted" style="margin-top:6px">AI sẽ tự chọn một phân đoạn Kinh Thánh phù hợp với chủ đề rồi tạo câu chuyện thật.</div></div>`:'';
+    const d=overlay(`<div class="modal"><button class="x">×</button><h2>Tạo ${label}</h2><p class="muted">${help}</p>${storyMode}${scriptureBox}${topicBox}<div id="err"></div><div class="modalActions"><button class="btn gold" id="go">Tạo & xem trước</button></div></div>`);
+    const modeEl=d.querySelector('#storyMode'),scripture=d.querySelector('#scriptureBox'),topic=d.querySelector('#topicBox');
+    const syncMode=()=>{if(!isStory)return;const byTopic=modeEl.value==='topic';scripture?.classList.toggle('hidden',byTopic);topic?.classList.toggle('hidden',!byTopic)};
+    if(modeEl){modeEl.onchange=syncMode;syncMode()}
     d.querySelector('#go').onclick=async()=>{
-      const text=d.querySelector('#src').value.trim();
-      if(!text){d.querySelector('#err').innerHTML='<div class="error">Chưa nhập câu hoặc phân đoạn Kinh Thánh.</div>';return}
+      const mode=isStory?(modeEl?.value||'scripture'):'scripture';
+      const text=d.querySelector('#src')?.value.trim()||'';
+      const topicText=d.querySelector('#topic')?.value.trim()||'';
+      if(mode==='topic'&&!topicText){d.querySelector('#err').innerHTML='<div class="error">Chưa nhập chủ đề.</div>';return}
+      if(mode!=='topic'&&!text){d.querySelector('#err').innerHTML='<div class="error">Chưa nhập câu hoặc phân đoạn Kinh Thánh.</div>';return}
       const b=d.querySelector('#go');
       try{
         b.disabled=true;b.textContent='Đang tạo…';
-        const fd=new FormData();fd.append('content_kind',kind);fd.append('text',text);
+        const fd=new FormData();
+        fd.append('content_kind',kind);
+        fd.append('creation_mode',mode);
+        fd.append('text',text);
+        fd.append('topic',topicText);
         const r=await fetch(DEVOTIONAL,{method:'POST',body:fd});
         const j=await r.json();if(!r.ok)throw Error(j.error||'Không tạo được nội dung');
         d.remove();previewV2(j.lesson||j,kind);
