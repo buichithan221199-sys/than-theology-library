@@ -210,7 +210,8 @@
         for(const [k,v] of old.entries())if(k!=='file'&&k!=='files'&&k!=='mode'&&k!=='text')fd.append(k,v);
         fd.set('mode','text');fd.set('text',transcript);fd.set('source_origin','audio');
         const sr=await fetchBeforeEphemeral(AI,{method:'POST',headers:{'x-admin-pin':pin},body:fd});
-        const sj=await sr.json().catch(()=>({}));
+        const rawResult=await sr.text();let sj={};try{sj=rawResult?JSON.parse(rawResult):{}}catch{}
+        if(!sr.ok&&!sj?.error) sj={error:`Tổng hợp bài học thất bại (HTTP ${sr.status}): ${String(rawResult||'Không có chi tiết lỗi.').slice(0,600)}`};
         if(sj?.lesson){sj.lesson.source_kind='audio';sj.lesson.source_transcript=''}
         sj.audio_processing=tj.audio_processing||{retained:false};
         window.dispatchEvent(new CustomEvent('theology-audio-progress',{detail:{phase:'done'}}));
