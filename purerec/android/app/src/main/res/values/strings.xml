@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">PureRec</string>
+    <string name="notification_title">PureRec đang ghi âm</string>
+    <string name="notification_text">System audio đang được ghi cục bộ</string>
+</resources>
