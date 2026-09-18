@@ -85,10 +85,8 @@
     return f;
   }
   async function buildMp3Segments(file){
-    const first=await firstMp3Frame(file),info=await mp3InfoAt(file,first);
-    if(!info)throw new Error('Không đọc được thông tin bitrate của MP3.');
-    const targetSeconds=180;
-    const targetBytes=Math.max(768*1024,Math.min(5*1024*1024,Math.round((info.bitrate/8)*targetSeconds)));
+    const first=await firstMp3Frame(file);
+    const targetBytes=2*1024*1024;
     const parts=[];let start=first;
     while(start<file.size){
       const remaining=file.size-start;
@@ -97,9 +95,9 @@
       const end=await findMp3Frame(file,approx,MP3_SCAN_BYTES);
       if(end<0||end<=start)throw new Error('Không thể tìm ranh giới MP3 an toàn. Hãy xuất lại file MP3 rồi thử lại.');
       parts.push({start,end});start=end;
-      if(parts.length>80)throw new Error('File MP3 quá dài để xử lý trong một lượt.');
+      if(parts.length>70)throw new Error('File MP3 vượt giới hạn 128 MB hoặc có cấu trúc bất thường.');
     }
-    return {parts,first,bitrate:info.bitrate};
+    return {parts,first};
   }
   function wavBlobFromBuffer(buffer,startSec,endSec){
     const rate=16000,start=Math.max(0,startSec),end=Math.min(buffer.duration,endSec);
@@ -144,7 +142,7 @@
     }catch(e){if(path)await cleanupTempAudio([path],pin);throw e}
   }
   async function transcribeMp3Segmented(file,pin){
-    const {parts,first,bitrate}=await buildMp3Segments(file),texts=[],meta=[];
+    const {parts,first}=await buildMp3Segments(file),texts=[],meta=[];
     let prompt='',wavCounter=0;
     window.dispatchEvent(new CustomEvent('theology-audio-progress',{detail:{phase:'segment',done:0,total:parts.length}}));
     for(let i=0;i<parts.length;i++){
@@ -155,9 +153,9 @@
         const found=await findMp3Frame(file,decodeStart,Math.min(256*1024,Math.max(0,seg.start-decodeStart+4096)));
         if(found>=0&&found<seg.start)decodeStart=found;
       }
-      const local=await mp3InfoAt(file,Math.max(first,decodeStart))||{bitrate};
-      const skipSec=i===0?0:Math.max(0,Math.min(45,((seg.start-decodeStart)*8)/Math.max(1,local.bitrate)));
       const buffer=await decodeMp3Slice(file,decodeStart,seg.end);
+      const sliceBytes=Math.max(1,seg.end-decodeStart),overlapBytes=Math.max(0,seg.start-decodeStart);
+      const skipSec=i===0?0:Math.max(0,Math.min(buffer.duration*0.25,buffer.duration*(overlapBytes/sliceBytes)));
       const maxWavSeconds=300,usableStart=Math.min(skipSec,Math.max(0,buffer.duration-0.25));
       const windows=[];
       for(let t=usableStart;t<buffer.duration-0.05;t+=maxWavSeconds)windows.push([t,Math.min(buffer.duration,t+maxWavSeconds)]);
