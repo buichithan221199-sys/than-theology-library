@@ -1,6 +1,6 @@
 {
   "name": "purerec",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Private system audio recorder designed by Chi Than Bui",
   "main": "main.js",
   "author": "Chi Than Bui",
