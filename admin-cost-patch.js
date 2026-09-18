@@ -77,3 +77,21 @@ document.addEventListener('click',function(e){
   e.preventDefault();
   window.openAiCost?.();
 });
+
+if(new URLSearchParams(location.search).get('smoke_ai_cost')==='1'){
+  let tries=0;
+  const timer=setInterval(()=>{
+    const b=document.querySelector('#aiCostNavBtn');
+    if(b){
+      clearInterval(timer);
+      b.click();
+      setTimeout(()=>{
+        const ok=[...document.querySelectorAll('.modal h2')].some(x=>x.textContent.includes('Mở quản trị'));
+        document.documentElement.dataset.aiCostClickTest=ok?'pass':'fail';
+      },100);
+    }else if(++tries>40){
+      clearInterval(timer);
+      document.documentElement.dataset.aiCostClickTest='missing-button';
+    }
+  },100);
+}
