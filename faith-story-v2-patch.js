@@ -2,6 +2,7 @@
 (function(){
   const DEVOTIONAL=SB+'/functions/v1/theology-devotional';
   const IMAGE=SB+'/functions/v1/theology-image';
+  function cleanFaithGeneratedText(v){let s=String(v||'');s=s.replace(/\[([^\]\n]{1,160})\]\s*\((https?:\/\/[^)]+)\)/gi,' ');s=s.replace(/\[(?:https?:\/\/)?(?:www\.)?[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\]\s]*)?\]/gi,' ');s=s.replace(/\(https?:\/\/[^)]+\)/gi,' ');s=s.replace(/https?:\/\/\S+/gi,' ');s=s.replace(/cite[^]+/g,' ');s=s.replace(/\[(?:nguồn|source|citation)[^\]]*\]/gi,' ');return s.replace(/[ \t]+/g,' ').replace(/\s+([,.;:!?])/g,'$1').replace(/\n[ \t]+/g,'\n').replace(/\n{3,}/g,'\n\n').trim()}
 
   async function makeCover(l,kind){
     try{
@@ -14,6 +15,7 @@
 
   function previewV2(v,kind){
     const isStory=kind==='faith_story';
+    if(isStory)v={...v,title:cleanFaithGeneratedText(v?.title),summary:cleanFaithGeneratedText(v?.summary),application:cleanFaithGeneratedText(v?.application),prayer:cleanFaithGeneratedText(v?.prayer)};
     const sourceCount=Array.isArray(v?.source_urls)?v.source_urls.length:0;
     const d=overlay(`<div class="modal" style="width:min(900px,96vw)"><button class="x">×</button><h2>Xem trước</h2>
       <div class="field"><label>Tiêu đề</label><input id="t" value="${esc(v.title||'')}"></div>
