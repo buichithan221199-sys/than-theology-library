@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  actions: read
   pages: write
   id-token: write
 
@@ -77,25 +76,6 @@ jobs:
           test -f _site/service-worker.js
           test ! -f _site/admin-cost-loader.js
           test ! -f _site/lesson-depth-display-patch.js
-
-      - name: Add PureRec download site and installers
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -e
-          mkdir -p _site/purerec/downloads
-          cp purerec-site/index.html _site/purerec/index.html
-
-          echo "Downloading PureRec Windows installer artifact..."
-          gh run download 35309742854 -n PureRec-Windows-1.0.1 -D _site/purerec/downloads
-
-          echo "Downloading PureRec Android APK artifact..."
-          gh run download 35309010684 -n PureRec-Android-1.0 -D _site/purerec/downloads
-
-          test -f _site/purerec/index.html
-          test -f _site/purerec/downloads/PureRec-Setup-1.0.1.exe
-          test -f _site/purerec/downloads/PureRec-Android-1.0.apk
-          echo "PureRec download site bundled successfully."
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
