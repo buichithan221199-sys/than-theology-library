@@ -14,9 +14,11 @@
 
   function previewV2(v,kind){
     const isStory=kind==='faith_story';
+    const sourceCount=Array.isArray(v?.source_urls)?v.source_urls.length:0;
     const d=overlay(`<div class="modal" style="width:min(900px,96vw)"><button class="x">×</button><h2>Xem trước</h2>
       <div class="field"><label>Tiêu đề</label><input id="t" value="${esc(v.title||'')}"></div>
       <div class="field"><label>Phân đoạn Kinh Thánh</label><input id="sr" value="${esc(v.scripture_reference||'')}"></div>
+      ${sourceCount?`<div class="muted" style="margin:-4px 0 12px">✓ Câu chuyện đời thật đã được đối chiếu qua ${sourceCount} nguồn web công khai.</div>`:''}
       ${v.key_verse_1925?`<div class="field"><label>Câu gốc · Bản 1925</label><textarea id="kv" rows="3">${esc(v.key_verse_1925)}</textarea></div>`:''}
       <div class="field"><label>${isStory?'Câu chuyện đức tin · người thật · sự kiện thật · địa điểm thật · tối đa 500 chữ':'Suy ngẫm ngắn'}</label><textarea id="sum" rows="${isStory?16:6}">${esc(v.summary||'')}</textarea></div>
       ${isStory?`<div class="field"><label>Bài học rút ra · đúng 1 câu</label><textarea id="app" rows="3">${esc(v.application||'')}</textarea></div>`:''}
@@ -26,7 +28,9 @@
       const b=d.querySelector('#save');
       try{
         b.disabled=true;b.textContent='Đang lưu…';
-        const summary=d.querySelector('#sum').value.trim();if(isStory&&summary.split(/\\s+/).filter(Boolean).length>500){throw Error('Câu chuyện đức tin tối đa 500 chữ. Vui lòng rút ngắn trước khi lưu.')}const lesson={title:d.querySelector('#t').value.trim(),summary,scripture_reference:d.querySelector('#sr').value.trim(),key_verse_reference:v.key_verse_reference||'',key_verse_1925:d.querySelector('#kv')?.value.trim()||'',subtitle:v.subtitle||'',teacher:'',introduction:'',background:'',transition_text:'',application:isStory?(d.querySelector('#app')?.value.trim()||''):'',prayer:d.querySelector('#pr').value.trim(),main_content:[],reflection_questions:[],tags:v.tags||[],source_kind:kind,is_published:true,folder_slug:isStory?'faith-stories':'short-prayers'};
+        const summary=d.querySelector('#sum').value.trim();
+        if(isStory&&summary.split(/\s+/).filter(Boolean).length>500){throw Error('Câu chuyện đức tin tối đa 500 chữ. Vui lòng rút ngắn trước khi lưu.')}
+        const lesson={title:d.querySelector('#t').value.trim(),summary,scripture_reference:d.querySelector('#sr').value.trim(),key_verse_reference:v.key_verse_reference||'',key_verse_1925:d.querySelector('#kv')?.value.trim()||'',subtitle:v.subtitle||'',teacher:'',introduction:'',background:'',transition_text:'',application:isStory?(d.querySelector('#app')?.value.trim()||''):'',prayer:d.querySelector('#pr').value.trim(),main_content:[],reflection_questions:[],tags:v.tags||[],source_kind:kind,source_notes:Array.isArray(v?.source_urls)?v.source_urls.join('\n'):'',is_published:true,folder_slug:isStory?'faith-stories':'short-prayers'};
         const res=await adm('save_lesson',{lesson});
         d.remove();
         await makeCover(res.lesson,kind);
@@ -43,11 +47,11 @@
     const isStory=kind==='faith_story';
     const label=isStory?'Câu chuyện đức tin':'Lời cầu nguyện ngắn';
     const help=isStory
-      ?'Tạo theo Kinh Thánh hoặc theo chủ đề. Dù chọn cách nào, câu chuyện vẫn phải là người thật · sự kiện thật · địa điểm thật và tối đa 500 chữ.'
+      ?'Tạo theo Kinh Thánh hoặc theo chủ đề. Riêng chế độ Theo chủ đề, app sẽ tìm một câu chuyện đời thật gần gũi trước; Kinh Thánh chỉ dùng để soi sáng và ứng dụng, không kể lại câu chuyện Kinh Thánh làm nội dung chính.'
       :'AI sẽ tạo suy ngẫm và lời cầu nguyện ngắn dựa trên Kinh Thánh.';
-    const storyMode=isStory?`<div class="field"><label>Tạo câu chuyện theo</label><select id="storyMode"><option value="scripture">Theo câu / phân đoạn Kinh Thánh</option><option value="topic">Theo chủ đề</option></select></div>`:'';
+    const storyMode=isStory?`<div class="field"><label>Tạo câu chuyện theo</label><select id="storyMode"><option value="scripture">Theo câu / phân đoạn Kinh Thánh</option><option value="topic">Theo chủ đề · câu chuyện đời thật</option></select></div>`:'';
     const scriptureBox=`<div class="field" id="scriptureBox"><label>Câu / phân đoạn Kinh Thánh</label><textarea id="src" rows="8" placeholder="Ví dụ: Thi Thiên 23:1-4 hoặc dán nguyên văn phân đoạn..."></textarea></div>`;
-    const topicBox=isStory?`<div class="field hidden" id="topicBox"><label>Chủ đề</label><textarea id="topic" rows="5" placeholder="Ví dụ: tha thứ, kiên trì, đức tin khi chờ đợi, khi bị hiểu lầm, trung tín trong thử thách..."></textarea><div class="muted" style="margin-top:6px">AI sẽ tự chọn một phân đoạn Kinh Thánh phù hợp với chủ đề rồi tạo câu chuyện thật.</div></div>`:'';
+    const topicBox=isStory?`<div class="field hidden" id="topicBox"><label>Chủ đề</label><textarea id="topic" rows="5" placeholder="Ví dụ: tha thứ, kiên trì, đức tin khi chờ đợi, khi bị hiểu lầm, trung tín trong thử thách..."></textarea><div class="muted" style="margin-top:6px">AI sẽ tìm và đối chiếu một câu chuyện có thật trong đời sống: người thật, sự kiện thật, địa điểm thật. Câu chuyện sẽ gần gũi và đi sâu vào lòng người đọc; sau đó mới liên hệ với một phân đoạn Kinh Thánh phù hợp. Không dùng câu chuyện Kinh Thánh làm câu chuyện chính.</div></div>`:'';
     const d=overlay(`<div class="modal"><button class="x">×</button><h2>Tạo ${label}</h2><p class="muted">${help}</p>${storyMode}${scriptureBox}${topicBox}<div id="err"></div><div class="modalActions"><button class="btn gold" id="go">Tạo & xem trước</button></div></div>`);
     const modeEl=d.querySelector('#storyMode'),scripture=d.querySelector('#scriptureBox'),topic=d.querySelector('#topicBox');
     const syncMode=()=>{if(!isStory)return;const byTopic=modeEl.value==='topic';scripture?.classList.toggle('hidden',byTopic);topic?.classList.toggle('hidden',!byTopic)};
@@ -60,7 +64,7 @@
       if(mode!=='topic'&&!text){d.querySelector('#err').innerHTML='<div class="error">Chưa nhập câu hoặc phân đoạn Kinh Thánh.</div>';return}
       const b=d.querySelector('#go');
       try{
-        b.disabled=true;b.textContent='Đang tạo…';
+        b.disabled=true;b.textContent=mode==='topic'?'Đang tìm câu chuyện thật…':'Đang tạo…';
         const fd=new FormData();
         fd.append('content_kind',kind);
         fd.append('creation_mode',mode);
