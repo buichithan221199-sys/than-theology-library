@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#07111f" />
+  <meta name="description" content="PureRec — personal system audio recorder" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>PureRec</title>
+</head>
+<body>
+  <div class="appFrame">
+    <header class="appHeader">
+      <div class="brandBlock">
+        <div class="appLogo" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <div>
+          <div class="brandName">PureRec</div>
+          <div class="brandTag">RECORD WHAT YOU HEAR</div>
+        </div>
+      </div>
+      <div class="headerRight">
+        <div class="tagline">Simple. Private. Just Record.</div>
+        <button class="iconButton" id="headerSettingsBtn" aria-label="Cài đặt">⚙</button>
+      </div>
+    </header>
+
+    <div class="appBody">
+      <aside class="sidebar">
+        <nav class="sideNav">
+          <button class="navItem active" data-view="record">
+            <span class="navIcon">◉</span>
+            <span><b>Ghi âm</b><small>Thu âm thanh hệ thống</small></span>
+          </button>
+          <button class="navItem" data-view="settings">
+            <span class="navIcon">⚙</span>
+            <span><b>Cài đặt</b><small>Tùy chọn ghi âm</small></span>
+          </button>
+          <button class="navItem" data-view="about">
+            <span class="navIcon">ⓘ</span>
+            <span><b>Giới thiệu</b><small>Thông tin ứng dụng</small></span>
+          </button>
+        </nav>
+
+        <div class="signature">Chi Than Bui</div>
+        <div class="offlineBadge">
+          <div><span class="shield">◆</span><b>100% Offline</b></div>
+          <small>Không lưu lịch sử. Không upload.</small>
+        </div>
+      </aside>
+
+      <main class="content">
+        <section class="view active" id="view-record">
+          <div class="recordLayout">
+            <section class="recordStage panel">
+              <div class="stageBackdrop" aria-hidden="true"><div class="mountain left"></div><div class="mountain right"></div><div class="lake"></div></div>
+
+              <div class="recordStatus"><span class="statusDot" id="statusDot"></span><b id="statusText">SẴN SÀNG</b></div>
+              <div class="timer" id="timer">00:00:00</div>
+              <div class="wave" id="wave" aria-label="Dạng sóng âm thanh"></div>
+
+              <div class="recordOrbWrap">
+                <button class="recordOrb startOrb" id="startBtn" aria-label="Bắt đầu ghi"><span class="recordDot"></span></button>
+                <button class="recordOrb stopOrb hidden" id="stopBtn" aria-label="Hoàn tất"><span class="stopSquare"></span></button>
+              </div>
+
+              <div class="mainControls">
+                <button class="softButton hidden" id="pauseBtn"><span>Ⅱ</span> Tạm dừng</button>
+                <button class="softButton hidden" id="resumeBtn"><span>↻</span> Tiếp tục</button>
+              </div>
+
+              <div class="subControls hidden" id="recordingSubActions">
+                <button id="previewBtn">♫ Nghe lại</button>
+                <button id="saveDraftBtn">▣ Lưu & thoát</button>
+              </div>
+
+              <div class="livePanel">
+                <div class="meterRow">
+                  <div class="miniBars" id="miniBars" aria-hidden="true"></div>
+                  <div class="signalState"><span class="greenDot"></span><span id="signalLabel">Âm thanh sẵn sàng</span></div>
+                </div>
+                <div class="hairline"></div>
+                <div class="stats">
+                  <div><span class="statIcon">≋</span><b>48 kHz</b><small>Tần số lấy mẫu</small></div>
+                  <div><span class="statIcon">◎</span><b>Stereo</b><small>Kênh âm thanh</small></div>
+                  <div><span class="statIcon">◷</span><b id="tempSize">0 MB</b><small>Dung lượng tạm</small></div>
+                </div>
+                <div class="meterTrack" aria-hidden="true"><i id="meterFill"></i></div>
+              </div>
+            </section>
+
+            <aside class="controlRail">
+              <section class="settingCard panel">
+                <h2><span>≋</span>Nguồn âm thanh</h2>
+                <label class="radioCard selected"><input type="radio" name="source" value="system" checked><span class="radioDot"></span><span><b>Toàn bộ âm thanh máy tính</b><small>Ghi tất cả âm thanh hệ thống</small></span></label>
+                <label class="radioCard"><input type="radio" name="source" value="app"><span class="radioDot"></span><span><b>Chỉ một ứng dụng</b><small>Chọn ứng dụng để ghi riêng</small></span></label>
+              </section>
+
+              <section class="settingCard panel">
+                <h2><span>▱</span>Định dạng xuất</h2>
+                <select id="formatSelect" class="selectField">
+                  <option value="wav">WAV (Chất lượng cao)</option>
+                  <option value="webm">WebM / Opus</option>
+                  <option value="mp3">MP3</option>
+                </select>
+                <small class="helper">MP3 gọn nhẹ; WAV giữ chất lượng cao.</small>
+                <label class="fileNameLabel">Tên file<input id="fileName" value="PureRec_Recording" /></label>
+              </section>
+
+              <section class="settingCard panel saveCard">
+                <h2><span>▱</span>Thư mục lưu</h2>
+                <div class="pathField"><span id="savePath">Downloads / PureRec</span><button id="chooseFolderBtn" title="Chọn thư mục">▱</button></div>
+                <small class="helper">File được lưu tại đây sau khi hoàn tất.</small>
+              </section>
+
+              <section class="draftRailCard panel hidden" id="draftRailCard">
+                <div class="draftRailTop">
+                  <span class="draftRailIcon">◷</span>
+                  <div><b>Bản ghi chưa hoàn thành</b><small id="draftRailDuration">00:00:00</small></div>
+                </div>
+                <div class="draftRailActions">
+                  <button id="continueDraftRailBtn">▶ Tiếp tục</button>
+                  <button id="playDraftRailBtn">♫ Nghe lại</button>
+                  <button id="deleteDraftRailBtn" class="draftDelete">Xóa</button>
+                </div>
+              </section>
+
+              <section class="emailHintCard">
+                <span class="mailGlyph">✉</span>
+                <div><b>Xuất qua Email</b><small>Khi hoàn tất, chọn Lưu vào thiết bị hoặc gửi qua Mail / Gmail / Outlook.</small></div>
+              </section>
+
+              <section class="capabilityCard">
+                <span class="spark">✦</span>
+                <div><b id="capabilityTitle">Ghi system audio</b><small id="platformPill">Đang kiểm tra thiết bị…</small></div>
+                <span class="helpCircle">?</span>
+              </section>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" id="view-draft">
+          <div class="singleView panel">
+            <div class="singleIcon">◷</div>
+            <h1>Bản ghi đã lưu</h1>
+            <p class="muted" id="draftEmpty">Chưa có bản ghi dang dở.</p>
+            <div id="draftInfo" class="hidden draftInfo">
+              <div class="draftTime" id="draftDuration">00:00:00</div>
+              <p class="muted">PureRec chỉ giữ bản này vì bạn đã chọn <b>Lưu & thoát</b>.</p>
+              <div class="rowActions">
+                <button class="primaryButton" id="continueDraftBtn">▶ Tiếp tục ghi</button>
+                <button class="softButton" id="playDraftBtn">♫ Nghe lại</button>
+                <button class="dangerGhost" id="deleteDraftBtn">Xóa bản lưu</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-settings">
+          <div class="settingsGrid">
+            <section class="singleView panel compactCard">
+              <h1>Quyền riêng tư</h1>
+              <label class="toggleRow"><span><b>Tự xóa dữ liệu tạm</b><small>Sau khi xuất file thành công</small></span><input type="checkbox" checked disabled></label>
+              <label class="toggleRow"><span><b>Không lưu lịch sử</b><small>PureRec không tạo thư viện bản ghi</small></span><input type="checkbox" checked disabled></label>
+              <label class="toggleRow"><span><b>Không upload cloud</b><small>Audio ở trên thiết bị của bạn</small></span><input type="checkbox" checked disabled></label>
+            </section>
+            <section class="singleView panel compactCard">
+              <h1>An toàn bản ghi</h1>
+              <label class="toggleRow"><span><b>Auto recovery</b><small>Khôi phục nếu app đóng bất ngờ</small></span><input type="checkbox" checked></label>
+              <p class="muted">Khi bạn chọn <b>Lưu & thoát</b>, bản ghi dang dở được giữ cục bộ để tiếp tục sau.</p>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-about">
+          <div class="singleView panel aboutCard">
+            <div class="appLogo bigLogo"><i></i><i></i><i></i><i></i><i></i></div>
+            <h1>PureRec</h1>
+            <p class="aboutTag">Simple. Private. Just Record.</p>
+            <div class="signature aboutSignature">Chi Than Bui</div>
+            <p class="muted">Ứng dụng ghi âm thanh hệ thống cá nhân. Không tài khoản, không lịch sử, không upload audio.</p>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="previewModal">
+    <div class="modalCard panel">
+      <div class="modalHead"><div><small>PURE REC</small><b>Nghe lại bản ghi</b></div><button id="closePreview">×</button></div>
+      <audio id="previewAudio" controls></audio>
+      <p class="modalHint">PureRec tạm dừng capture trước khi phát lại để không ghi chồng chính âm thanh của app.</p>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="finishModal">
+    <div class="modalCard finishCard panel">
+      <div class="modalHead"><div><small>HOÀN TẤT</small><b>Xuất bản ghi</b></div><button id="closeFinish">×</button></div>
+      <p class="finishText">Bạn muốn xuất file theo cách nào?</p>
+      <div class="exportChoices">
+        <button class="exportChoice" id="saveDeviceBtn">
+          <span class="choiceIcon">↓</span><span><b>Lưu vào thiết bị</b><small>Lưu file audio vào máy</small></span><span>›</span>
+        </button>
+        <button class="exportChoice emailChoice" id="sendEmailBtn">
+          <span class="choiceIcon">✉</span><span><b>Xuất qua Email</b><small>Đính kèm file vào Mail / Gmail / Outlook</small></span><span>›</span>
+        </button>
+      </div>
+      <button class="cancelButton" id="cancelFinish">Hủy — quay lại bản ghi</button>
+      <p class="modalHint">Sau khi xuất thành công, PureRec tự xóa dữ liệu tạm và không lưu lịch sử.</p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
