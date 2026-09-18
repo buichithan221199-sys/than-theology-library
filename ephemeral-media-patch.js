@@ -32,21 +32,24 @@
     }catch(e){await cleanupTempAudio(paths.filter(Boolean),pin);throw e}
   }
 
-  function mp3FrameLength(a,i){
-    if(i+4>a.length||a[i]!==0xff||(a[i+1]&0xe0)!==0xe0)return 0;
+  function mp3FrameInfo(a,i){
+    if(i+4>a.length||a[i]!==0xff||(a[i+1]&0xe0)!==0xe0)return null;
     const version=(a[i+1]>>3)&3,layer=(a[i+1]>>1)&3,bitrateIndex=(a[i+2]>>4)&15,sampleIndex=(a[i+2]>>2)&3,padding=(a[i+2]>>1)&1;
-    if(version===1||layer===0||bitrateIndex===0||bitrateIndex===15||sampleIndex===3)return 0;
+    if(version===1||layer===0||bitrateIndex===0||bitrateIndex===15||sampleIndex===3)return null;
     const mpeg1=version===3;
     const rates=mpeg1
       ?(layer===3?[32,64,96,128,160,192,224,256,288,320,352,384,416,448]:layer===2?[32,48,56,64,80,96,112,128,160,192,224,256,320,384]:[32,40,48,56,64,80,96,112,128,160,192,224,256,320])
       :(layer===3?[32,48,56,64,80,96,112,128,144,160,176,192,224,256]:[8,16,24,32,40,48,56,64,80,96,112,128,144,160]);
-    const br=rates[bitrateIndex-1]*1000;
-    let sr=[44100,48000,32000][sampleIndex];
-    if(version===2)sr/=2;else if(version===0)sr/=4;
-    if(layer===3)return Math.floor((12*br/sr)+padding)*4;
-    if(layer===1&&!mpeg1)return Math.floor((72*br/sr)+padding);
-    return Math.floor((144*br/sr)+padding);
+    const bitrate=rates[bitrateIndex-1]*1000;
+    let sampleRate=[44100,48000,32000][sampleIndex];
+    if(version===2)sampleRate/=2;else if(version===0)sampleRate/=4;
+    let frameLength=0;
+    if(layer===3)frameLength=Math.floor((12*bitrate/sampleRate)+padding)*4;
+    else if(layer===1&&!mpeg1)frameLength=Math.floor((72*bitrate/sampleRate)+padding);
+    else frameLength=Math.floor((144*bitrate/sampleRate)+padding);
+    return {frameLength,bitrate,sampleRate};
   }
+  function mp3FrameLength(a,i){return mp3FrameInfo(a,i)?.frameLength||0}
   async function findMp3Frame(file,start,scanBytes=MP3_SCAN_BYTES){
     const end=Math.min(file.size,start+scanBytes),a=new Uint8Array(await file.slice(start,end).arrayBuffer());
     for(let i=0;i+4<a.length;i++){
@@ -56,6 +59,10 @@
       else if(start+i+len>=file.size-4)return start+i;
     }
     return -1;
+  }
+  async function mp3InfoAt(file,offset){
+    const a=new Uint8Array(await file.slice(offset,offset+4).arrayBuffer());
+    return mp3FrameInfo(a,0);
   }
   async function firstMp3Frame(file){
     let start=0;
@@ -67,68 +74,100 @@
     let f=await findMp3Frame(file,start,Math.min(2*1024*1024,Math.max(0,file.size-start)));
     if(f<0&&start>0)f=await findMp3Frame(file,0,Math.min(2*1024*1024,file.size));
     if(f<0)throw new Error('Không nhận diện được cấu trúc MP3. Hãy xuất lại file dưới dạng MP3 chuẩn rồi thử lại.');
-    const probe=new Uint8Array(await file.slice(f,Math.min(file.size,f+2048)).arrayBuffer());
-    const len=mp3FrameLength(probe,0);
-    if(len>0){
-      const text=new TextDecoder('latin1').decode(probe.slice(0,Math.min(len,probe.length)));
-      if(text.includes('Xing')||text.includes('Info')||text.includes('VBRI')){
-        const next=f+len;
-        const nf=await findMp3Frame(file,next,Math.min(64*1024,Math.max(0,file.size-next)));
-        if(nf>=0)f=nf;
-      }
-    }
     return f;
   }
   async function buildMp3Segments(file){
-    const parts=[],first=await firstMp3Frame(file);let start=first;
+    const first=await firstMp3Frame(file),info=await mp3InfoAt(file,first);
+    if(!info)throw new Error('Không đọc được thông tin bitrate của MP3.');
+    const targetSeconds=180;
+    const targetBytes=Math.max(768*1024,Math.min(5*1024*1024,Math.round((info.bitrate/8)*targetSeconds)));
+    const parts=[];let start=first;
     while(start<file.size){
       const remaining=file.size-start;
-      if(remaining<=MP3_SEGMENT_BYTES+MP3_SCAN_BYTES){parts.push({start,end:file.size});break}
-      const approx=start+MP3_SEGMENT_BYTES;
+      if(remaining<=targetBytes+MP3_SCAN_BYTES){parts.push({start,end:file.size});break}
+      const approx=start+targetBytes;
       const end=await findMp3Frame(file,approx,MP3_SCAN_BYTES);
-      if(end<0||end<=start)throw new Error('Không thể chia MP3 tại ranh giới audio an toàn. Hãy xuất lại MP3 và thử lại.');
+      if(end<0||end<=start)throw new Error('Không thể tìm ranh giới MP3 an toàn. Hãy xuất lại file MP3 rồi thử lại.');
       parts.push({start,end});start=end;
-      if(parts.length>16)throw new Error('MP3 có quá nhiều đoạn xử lý.');
+      if(parts.length>80)throw new Error('File MP3 quá dài để xử lý trong một lượt.');
     }
-    return parts;
+    return {parts,first,bitrate:info.bitrate};
+  }
+  function wavBlobFromBuffer(buffer,startSec,endSec){
+    const rate=16000,start=Math.max(0,startSec),end=Math.min(buffer.duration,endSec);
+    const count=Math.max(0,Math.floor((end-start)*rate));
+    const ab=new ArrayBuffer(44+count*2),v=new DataView(ab),u=new Uint8Array(ab);
+    const write=(o,s)=>{for(let i=0;i<s.length;i++)u[o+i]=s.charCodeAt(i)};
+    write(0,'RIFF');v.setUint32(4,36+count*2,true);write(8,'WAVE');write(12,'fmt ');
+    v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);write(36,'data');v.setUint32(40,count*2,true);
+    const channels=Array.from({length:buffer.numberOfChannels},(_,i)=>buffer.getChannelData(i)),ratio=buffer.sampleRate/rate;
+    for(let i=0;i<count;i++){
+      const src=Math.min(buffer.length-1,Math.floor((start*buffer.sampleRate)+i*ratio));
+      let x=0;for(const ch of channels)x+=ch[src]||0;x/=Math.max(1,channels.length);
+      x=Math.max(-1,Math.min(1,x));v.setInt16(44+i*2,x<0?Math.round(x*32768):Math.round(x*32767),true);
+    }
+    return new Blob([ab],{type:'audio/wav'});
+  }
+  async function decodeMp3Slice(file,start,end){
+    const AudioCtx=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtx)throw new Error('Trình duyệt này không hỗ trợ giải mã MP3. Hãy thử Chrome/Edge/Safari mới nhất.');
+    const ctx=new AudioCtx();
+    try{
+      const raw=await file.slice(start,end,'audio/mpeg').arrayBuffer();
+      return await ctx.decodeAudioData(raw.slice(0));
+    }catch(e){
+      throw new Error('Không giải mã được một đoạn MP3 trong trình duyệt. File có thể dùng codec MP3 không chuẩn hoặc bị lỗi.');
+    }finally{try{await ctx.close()}catch{}}
+  }
+  async function transcribeWavBlob(blob,pin,fileName,index,total,prompt){
+    let path='';
+    try{
+      const up=await adm('create_upload_url',{file_name:fileName});
+      path=up.path;
+      const put=await fetchBeforeEphemeral(up.signed_url,{method:'PUT',headers:{'content-type':'audio/wav'},body:blob});
+      if(!put.ok)throw new Error(`Không tải được đoạn WAV ${index+1}/${total}.`);
+      const tr=await fetchBeforeEphemeral(AUDIO_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','x-admin-pin':pin},body:JSON.stringify({action:'transcribe_segment',path,file_name:fileName,mime_type:'audio/wav',segment_bytes:blob.size,index,total,prompt})});
+      const tj=await tr.json().catch(()=>({}));
+      if(!tr.ok)throw new Error(tj?.error||`Không phiên âm được đoạn ${index+1}/${total}.`);
+      path='';
+      const transcript=String(tj?.transcript||'').trim();
+      if(!transcript)throw new Error(`Bản phiên âm đoạn ${index+1} bị rỗng.`);
+      return {transcript,meta:tj?.audio_processing||{}};
+    }catch(e){if(path)await cleanupTempAudio([path],pin);throw e}
   }
   async function transcribeMp3Segmented(file,pin){
-    const segments=await buildMp3Segments(file),texts=new Array(segments.length),meta=new Array(segments.length);
-    let cursor=0,done=0,failed=null;
-    window.dispatchEvent(new CustomEvent('theology-audio-progress',{detail:{phase:'segment',done:0,total:segments.length}}));
-    async function worker(){
-      while(true){
-        if(failed)return;
-        const i=cursor++;if(i>=segments.length)return;
-        const seg=segments[i],blob=file.slice(seg.start,seg.end,'audio/mpeg');
-        let path='';
-        try{
-          const up=await adm('create_upload_url',{file_name:`tmp_audio_mp3_${Date.now()}_${String(i+1).padStart(2,'0')}.mp3`});
-          path=up.path;
-          const put=await fetchBeforeEphemeral(up.signed_url,{method:'PUT',headers:{'content-type':'audio/mpeg'},body:blob});
-          if(!put.ok)throw new Error(`Không tải được đoạn MP3 ${i+1}/${segments.length}.`);
-          const tr=await fetchBeforeEphemeral(AUDIO_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','x-admin-pin':pin},body:JSON.stringify({action:'transcribe_segment',path,file_name:`segment-${i+1}.mp3`,original_name:file.name,mime_type:'audio/mpeg',segment_bytes:blob.size,index:i,total:segments.length})});
-          const tj=await tr.json().catch(()=>({}));
-          if(!tr.ok)throw new Error(tj?.error||`Không phiên âm được đoạn ${i+1}/${segments.length}.`);
-          texts[i]=String(tj?.transcript||'').trim();meta[i]=tj?.audio_processing||{};
-          if(!texts[i])throw new Error(`Bản phiên âm đoạn ${i+1} bị rỗng.`);
-          path='';
-          done++;
-          window.dispatchEvent(new CustomEvent('theology-audio-progress',{detail:{phase:'transcribe_segment',done,total:segments.length}}));
-        }catch(e){
-          failed=e;
-          if(path)await cleanupTempAudio([path],pin);
-          throw e;
-        }
+    const {parts,first,bitrate}=await buildMp3Segments(file),texts=[],meta=[];
+    let prompt='',wavCounter=0;
+    window.dispatchEvent(new CustomEvent('theology-audio-progress',{detail:{phase:'segment',done:0,total:parts.length}}));
+    for(let i=0;i<parts.length;i++){
+      const seg=parts[i];
+      window.dispatchEvent(new CustomEvent('theology-audio-progress',{detail:{phase:'decode_mp3',done:i,total:parts.length}}));
+      let decodeStart=i===0?0:Math.max(first,seg.start-256*1024);
+      if(i>0){
+        const found=await findMp3Frame(file,decodeStart,Math.min(256*1024,Math.max(0,seg.start-decodeStart+4096)));
+        if(found>=0&&found<seg.start)decodeStart=found;
       }
+      const local=await mp3InfoAt(file,Math.max(first,decodeStart))||{bitrate};
+      const skipSec=i===0?0:Math.max(0,Math.min(45,((seg.start-decodeStart)*8)/Math.max(1,local.bitrate)));
+      const buffer=await decodeMp3Slice(file,decodeStart,seg.end);
+      const maxWavSeconds=300,usableStart=Math.min(skipSec,Math.max(0,buffer.duration-0.25));
+      const windows=[];
+      for(let t=usableStart;t<buffer.duration-0.05;t+=maxWavSeconds)windows.push([t,Math.min(buffer.duration,t+maxWavSeconds)]);
+      if(!windows.length)continue;
+      for(const [a,b] of windows){
+        const wav=wavBlobFromBuffer(buffer,a,b);
+        if(!wav.size)continue;
+        const idx=wavCounter++,name=`tmp_audio_wav_${Date.now()}_${String(idx+1).padStart(3,'0')}.wav`;
+        const result=await transcribeWavBlob(wav,pin,name,idx,Math.max(1,parts.length),prompt);
+        texts.push(result.transcript);meta.push(result.meta);prompt=result.transcript.slice(-1000);
+      }
+      window.dispatchEvent(new CustomEvent('theology-audio-progress',{detail:{phase:'transcribe_segment',done:i+1,total:parts.length}}));
+      await new Promise(r=>setTimeout(r,0));
     }
-    const workerCount=Math.min(2,segments.length);
-    await Promise.all(Array.from({length:workerCount},()=>worker()));
-    const transcript=texts.filter(Boolean).join('\n\n').trim();
+    const transcript=texts.join('\n\n').trim();
     if(!transcript)throw new Error('Bản phiên âm rỗng.');
-    const seconds=meta.reduce((s,x)=>s+(Number(x?.duration_seconds)||0),0);
-    const estimated=meta.reduce((s,x)=>s+(Number(x?.estimated_cost_usd)||0),0);
-    return {transcript,audio_processing:{model:'gpt-transcribe',duration_seconds:seconds||null,estimated_cost_usd:Number(estimated.toFixed(6)),retained:false,segmented:true,segments:segments.length}};
+    const seconds=meta.reduce((s,x)=>s+(Number(x?.duration_seconds)||0),0),estimated=meta.reduce((s,x)=>s+(Number(x?.estimated_cost_usd)||0),0);
+    return {transcript,audio_processing:{model:'gpt-transcribe',duration_seconds:seconds||null,estimated_cost_usd:Number(estimated.toFixed(6)),retained:false,segmented:true,segments:texts.length,converted_to_wav:true}};
   }
 
   // Long audio path: split locally, upload temporary private chunks, stream-transcribe them server-side,
@@ -188,13 +227,13 @@
         if(drop){
           const note=document.createElement('div');note.className='muted';note.style.cssText='margin-top:10px;line-height:1.5';
           note.innerHTML=mode==='audio'
-            ?'<b>Audio dài:</b> hỗ trợ bài học khoảng 1,5–2 giờ, tối đa 128 MB. <b>Khuyến nghị MP3</b>: MP3 dài được chia tại ranh giới audio an toàn và phiên âm theo từng đoạn; file chỉ lưu tạm và tự xóa sau xử lý.'
+            ?'<b>Audio dài:</b> hỗ trợ bài học khoảng 1,5–2 giờ, tối đa 128 MB. <b>Khuyến nghị MP3</b>: app sẽ giải mã từng đoạn MP3 thành WAV chuẩn rồi mới phiên âm; file WAV tạm được tự xóa sau xử lý.'
             :'<b>Ảnh tạm thời:</b> ảnh chỉ được dùng để AI đọc nội dung và sẽ không được lưu vào thư viện sau khi xử lý.';
           drop.insertAdjacentElement('afterend',note);
         }
         if(mode==='audio'){
           const btn=d?.querySelector('#process');
-          const onProgress=e=>{if(!document.body.contains(d)){window.removeEventListener('theology-audio-progress',onProgress);return}const x=e.detail||{};if(x.phase==='upload')btn.textContent=x.total?`Đang tải audio… ${x.done||0}/${x.total}`:'Đang tải audio…';else if(x.phase==='segment')btn.textContent=x.total?`Đang chia MP3… ${x.total} đoạn`:'Đang chia MP3…';else if(x.phase==='transcribe_segment')btn.textContent=`Đang phiên âm… ${x.done||0}/${x.total||0}`;else if(x.phase==='transcribe')btn.textContent='Đang phiên âm…';else if(x.phase==='summarize')btn.textContent='Đang tổng hợp bài học…';else if(x.phase==='done')btn.textContent='Hoàn tất…'};
+          const onProgress=e=>{if(!document.body.contains(d)){window.removeEventListener('theology-audio-progress',onProgress);return}const x=e.detail||{};if(x.phase==='upload')btn.textContent=x.total?`Đang tải audio… ${x.done||0}/${x.total}`:'Đang tải audio…';else if(x.phase==='segment')btn.textContent=x.total?`Chuẩn bị MP3… ${x.total} đoạn`:'Chuẩn bị MP3…';else if(x.phase==='decode_mp3')btn.textContent=`Đang chuyển MP3 → WAV… ${Math.min((x.done||0)+1,x.total||1)}/${x.total||1}`;else if(x.phase==='transcribe_segment')btn.textContent=`Đang phiên âm… ${x.done||0}/${x.total||0}`;else if(x.phase==='transcribe')btn.textContent='Đang phiên âm…';else if(x.phase==='summarize')btn.textContent='Đang tổng hợp bài học…';else if(x.phase==='done')btn.textContent='Hoàn tất…'};
           window.addEventListener('theology-audio-progress',onProgress);
         }
       }
