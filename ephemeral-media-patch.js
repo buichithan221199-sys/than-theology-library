@@ -3,6 +3,8 @@
   const AUDIO_ENDPOINT=SB+'/functions/v1/theology-audio';
   const MAX_AUDIO_BYTES=128*1024*1024;
   const AUDIO_CHUNK_BYTES=4*1024*1024;
+  const MP3_SEGMENT_BYTES=16*1024*1024;
+  const MP3_SCAN_BYTES=512*1024;
   const isEphemeralMode=mode=>mode==='audio'||mode==='images';
 
   function getHeader(init,name){try{return new Headers(init?.headers||{}).get(name)||''}catch{return ''}}
@@ -28,6 +30,95 @@
       }
       return paths;
     }catch(e){await cleanupTempAudio(paths.filter(Boolean),pin);throw e}
+  function mp3FrameLength(a,i){
+    if(i+4>a.length||a[i]!==0xff||(a[i+1]&0xe0)!==0xe0)return 0;
+    const version=(a[i+1]>>3)&3,layer=(a[i+1]>>1)&3,bitrateIndex=(a[i+2]>>4)&15,sampleIndex=(a[i+2]>>2)&3,padding=(a[i+2]>>1)&1;
+    if(version===1||layer===0||bitrateIndex===0||bitrateIndex===15||sampleIndex===3)return 0;
+    const mpeg1=version===3;
+    const rates=mpeg1
+      ?(layer===3?[32,64,96,128,160,192,224,256,288,320,352,384,416,448]:layer===2?[32,48,56,64,80,96,112,128,160,192,224,256,320,384]:[32,40,48,56,64,80,96,112,128,160,192,224,256,320])
+      :(layer===3?[32,48,56,64,80,96,112,128,144,160,176,192,224,256]:[8,16,24,32,40,48,56,64,80,96,112,128,144,160]);
+    const br=rates[bitrateIndex-1]*1000;
+    let sr=[44100,48000,32000][sampleIndex];
+    if(version===2)sr/=2;else if(version===0)sr/=4;
+    if(layer===3)return Math.floor((12*br/sr)+padding)*4;
+    if(layer===1&&!mpeg1)return Math.floor((72*br/sr)+padding);
+    return Math.floor((144*br/sr)+padding);
+  }
+  async function findMp3Frame(file,start,scanBytes=MP3_SCAN_BYTES){
+    const end=Math.min(file.size,start+scanBytes),a=new Uint8Array(await file.slice(start,end).arrayBuffer());
+    for(let i=0;i+4<a.length;i++){
+      const len=mp3FrameLength(a,i);if(!len)continue;
+      const n=i+len;
+      if(n+4<=a.length){if(mp3FrameLength(a,n))return start+i}
+      else if(start+i+len>=file.size-4)return start+i;
+    }
+    return -1;
+  }
+  async function firstMp3Frame(file){
+    let start=0;
+    const h=new Uint8Array(await file.slice(0,10).arrayBuffer());
+    if(h.length===10&&h[0]===0x49&&h[1]===0x44&&h[2]===0x33){
+      const size=((h[6]&0x7f)<<21)|((h[7]&0x7f)<<14)|((h[8]&0x7f)<<7)|(h[9]&0x7f);
+      start=10+size+((h[5]&0x10)?10:0);
+    }
+    let f=await findMp3Frame(file,start,Math.min(2*1024*1024,Math.max(0,file.size-start)));
+    if(f<0&&start>0)f=await findMp3Frame(file,0,Math.min(2*1024*1024,file.size));
+    if(f<0)throw new Error('Không nhận diện được cấu trúc MP3. Hãy xuất lại file dưới dạng MP3 chuẩn rồi thử lại.');
+    return f;
+  }
+  async function buildMp3Segments(file){
+    const parts=[],first=await firstMp3Frame(file);let start=first;
+    while(start<file.size){
+      const remaining=file.size-start;
+      if(remaining<=MP3_SEGMENT_BYTES+MP3_SCAN_BYTES){parts.push({start,end:file.size});break}
+      const approx=start+MP3_SEGMENT_BYTES;
+      const end=await findMp3Frame(file,approx,MP3_SCAN_BYTES);
+      if(end<0||end<=start)throw new Error('Không thể chia MP3 tại ranh giới audio an toàn. Hãy xuất lại MP3 và thử lại.');
+      parts.push({start,end});start=end;
+      if(parts.length>16)throw new Error('MP3 có quá nhiều đoạn xử lý.');
+    }
+    return parts;
+  }
+  async function transcribeMp3Segmented(file,pin){
+    const segments=await buildMp3Segments(file),texts=new Array(segments.length),meta=new Array(segments.length);
+    let cursor=0,done=0,failed=null;
+    window.dispatchEvent(new CustomEvent('theology-audio-progress',{detail:{phase:'segment',done:0,total:segments.length}}));
+    async function worker(){
+      while(true){
+        if(failed)return;
+        const i=cursor++;if(i>=segments.length)return;
+        const seg=segments[i],blob=file.slice(seg.start,seg.end,'audio/mpeg');
+        let path='';
+        try{
+          const up=await adm('create_upload_url',{file_name:`tmp_audio_mp3_${Date.now()}_${String(i+1).padStart(2,'0')}.mp3`});
+          path=up.path;
+          const put=await fetchBeforeEphemeral(up.signed_url,{method:'PUT',headers:{'content-type':'audio/mpeg'},body:blob});
+          if(!put.ok)throw new Error(`Không tải được đoạn MP3 ${i+1}/${segments.length}.`);
+          const tr=await fetchBeforeEphemeral(AUDIO_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','x-admin-pin':pin},body:JSON.stringify({action:'transcribe_segment',path,file_name:`segment-${i+1}.mp3`,original_name:file.name,mime_type:'audio/mpeg',segment_bytes:blob.size,index:i,total:segments.length})});
+          const tj=await tr.json().catch(()=>({}));
+          if(!tr.ok)throw new Error(tj?.error||`Không phiên âm được đoạn ${i+1}/${segments.length}.`);
+          texts[i]=String(tj?.transcript||'').trim();meta[i]=tj?.audio_processing||{};
+          if(!texts[i])throw new Error(`Bản phiên âm đoạn ${i+1} bị rỗng.`);
+          path='';
+          done++;
+          window.dispatchEvent(new CustomEvent('theology-audio-progress',{detail:{phase:'transcribe_segment',done,total:segments.length}}));
+        }catch(e){
+          failed=e;
+          if(path)await cleanupTempAudio([path],pin);
+          throw e;
+        }
+      }
+    }
+    const workerCount=Math.min(2,segments.length);
+    await Promise.all(Array.from({length:workerCount},()=>worker()));
+    const transcript=texts.filter(Boolean).join('\n\n').trim();
+    if(!transcript)throw new Error('Bản phiên âm rỗng.');
+    const seconds=meta.reduce((s,x)=>s+(Number(x?.duration_seconds)||0),0);
+    const estimated=meta.reduce((s,x)=>s+(Number(x?.estimated_cost_usd)||0),0);
+    return {transcript,audio_processing:{model:'gpt-transcribe',duration_seconds:seconds||null,estimated_cost_usd:Number(estimated.toFixed(6)),retained:false,segmented:true,segments:segments.length}};
+  }
+
   }
 
   // Long audio path: split locally, upload temporary private chunks, stream-transcribe them server-side,
@@ -42,15 +133,22 @@
       const pin=getHeader(init,'x-admin-pin')||S.pin||'';
       let paths=[];
       try{
-        window.dispatchEvent(new CustomEvent('theology-audio-progress',{detail:{phase:'upload',done:0,total:Math.ceil(file.size/AUDIO_CHUNK_BYTES)}}));
-        paths=await uploadAudioChunks(file,pin);
-        window.dispatchEvent(new CustomEvent('theology-audio-progress',{detail:{phase:'transcribe'}}));
-        const tr=await fetchBeforeEphemeral(AUDIO_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','x-admin-pin':pin},body:JSON.stringify({action:'transcribe_chunks',paths,file_name:file.name,mime_type:file.type||'audio/mp4',total_bytes:file.size})});
-        const tj=await tr.json().catch(()=>({}));
-        paths=[]; // the server removes all temporary chunks in finally, on success or failure.
-        if(!tr.ok)throw new Error(tj?.error||'Không phiên âm được file ghi âm.');
-        const transcript=String(tj?.transcript||'').trim();
-        if(!transcript)throw new Error('Bản phiên âm rỗng.');
+        const isMp3=/\.mp3$/i.test(file.name)||/audio\/(mpeg|mp3)/i.test(file.type||'');
+        let transcript='',tj={};
+        if(isMp3){
+          const segmented=await transcribeMp3Segmented(file,pin);
+          transcript=segmented.transcript;tj={audio_processing:segmented.audio_processing};
+        }else{
+          window.dispatchEvent(new CustomEvent('theology-audio-progress',{detail:{phase:'upload',done:0,total:Math.ceil(file.size/AUDIO_CHUNK_BYTES)}}));
+          paths=await uploadAudioChunks(file,pin);
+          window.dispatchEvent(new CustomEvent('theology-audio-progress',{detail:{phase:'transcribe'}}));
+          const tr=await fetchBeforeEphemeral(AUDIO_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','x-admin-pin':pin},body:JSON.stringify({action:'transcribe_chunks',paths,file_name:file.name,mime_type:file.type||'audio/mp4',total_bytes:file.size})});
+          tj=await tr.json().catch(()=>({}));
+          paths=[];
+          if(!tr.ok)throw new Error(tj?.error||'Không phiên âm được file ghi âm.');
+          transcript=String(tj?.transcript||'').trim();
+          if(!transcript)throw new Error('Bản phiên âm rỗng.');
+        }
 
         window.dispatchEvent(new CustomEvent('theology-audio-progress',{detail:{phase:'summarize'}}));
         const fd=new FormData();
@@ -80,13 +178,13 @@
         if(drop){
           const note=document.createElement('div');note.className='muted';note.style.cssText='margin-top:10px;line-height:1.5';
           note.innerHTML=mode==='audio'
-            ?'<b>Audio dài:</b> hỗ trợ bài học khoảng 1,5–2 giờ. Nên dùng M4A/MP3, tối đa 128 MB. Audio được chia nhỏ và chỉ lưu tạm trong lúc phiên âm; xử lý xong sẽ tự xóa.'
+            ?'<b>Audio dài:</b> hỗ trợ bài học khoảng 1,5–2 giờ, tối đa 128 MB. <b>Khuyến nghị MP3</b>: MP3 dài được chia tại ranh giới audio an toàn và phiên âm theo từng đoạn; file chỉ lưu tạm và tự xóa sau xử lý.'
             :'<b>Ảnh tạm thời:</b> ảnh chỉ được dùng để AI đọc nội dung và sẽ không được lưu vào thư viện sau khi xử lý.';
           drop.insertAdjacentElement('afterend',note);
         }
         if(mode==='audio'){
           const btn=d?.querySelector('#process');
-          const onProgress=e=>{if(!document.body.contains(d)){window.removeEventListener('theology-audio-progress',onProgress);return}const x=e.detail||{};if(x.phase==='upload')btn.textContent=x.total?`Đang tải audio… ${x.done||0}/${x.total}`:'Đang tải audio…';else if(x.phase==='transcribe')btn.textContent='Đang phiên âm…';else if(x.phase==='summarize')btn.textContent='Đang tổng hợp bài học…';else if(x.phase==='done')btn.textContent='Hoàn tất…'};
+          const onProgress=e=>{if(!document.body.contains(d)){window.removeEventListener('theology-audio-progress',onProgress);return}const x=e.detail||{};if(x.phase==='upload')btn.textContent=x.total?`Đang tải audio… ${x.done||0}/${x.total}`:'Đang tải audio…';else if(x.phase==='segment')btn.textContent=x.total?`Đang chia MP3… ${x.total} đoạn`:'Đang chia MP3…';else if(x.phase==='transcribe_segment')btn.textContent=`Đang phiên âm… ${x.done||0}/${x.total||0}`;else if(x.phase==='transcribe')btn.textContent='Đang phiên âm…';else if(x.phase==='summarize')btn.textContent='Đang tổng hợp bài học…';else if(x.phase==='done')btn.textContent='Hoàn tất…'};
           window.addEventListener('theology-audio-progress',onProgress);
         }
       }
