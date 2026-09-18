@@ -58,7 +58,7 @@ jobs:
           mkdir -p _site
           cp index.html _site/base.html
           cp static-app.html _site/index.html
-          cp manifest.webmanifest app-icon.svg service-worker.js ai-cost.html _site/
+          cp manifest.webmanifest app-icon.svg service-worker.js ai-cost.html print-preview.html _site/
           python3 - <<'PY'
           import pathlib, re, ast, shutil
           text=pathlib.Path('static-app.html').read_text(encoding='utf-8')
@@ -75,6 +75,7 @@ jobs:
           test -f _site/print-stability-patch.js
           test -f _site/service-worker.js
           test -f _site/ai-cost.html
+          test -f _site/print-preview.html
           test ! -f _site/admin-cost-loader.js
           test ! -f _site/lesson-depth-display-patch.js
 
