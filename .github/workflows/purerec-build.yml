@@ -1,5 +1,5 @@
-# PureRec build revision 5
-name: Build PureRec Installers
+# PureRec build revision 6
+name: Build PureRec Android
 
 on:
   push:
@@ -8,31 +8,6 @@ on:
       - ".github/workflows/purerec-build.yml"
 
 jobs:
-  windows:
-    name: Windows installer
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: purerec-build
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: purerec/windows/package.json
-      - name: Install dependencies
-        working-directory: purerec/windows
-        run: npm install
-      - name: Build PureRec Setup.exe
-        working-directory: purerec/windows
-        run: npm run dist:win
-      - name: Upload Windows installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: PureRec-Windows-1.0
-          path: purerec/windows/dist/PureRec-Setup-1.0.0.exe
-          if-no-files-found: error
-
   android:
     name: Android APK
     runs-on: ubuntu-latest
