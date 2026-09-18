@@ -1,5 +1,5 @@
-# PureRec build revision 6
-name: Build PureRec Android
+# PureRec Windows hotfix 1.0.1
+name: Build PureRec Windows 1.0.1
 
 on:
   push:
@@ -8,41 +8,27 @@ on:
       - ".github/workflows/purerec-build.yml"
 
 jobs:
-  android:
-    name: Android APK
-    runs-on: ubuntu-latest
+  windows:
+    name: Windows installer 1.0.1
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: purerec-build
-      - name: Install shared PureRec UI
-        run: |
-          mkdir -p purerec/android/app/src/main/assets/web
-          cp purerec/windows/web/index.html purerec/android/app/src/main/assets/web/index.html
-          cp purerec/windows/web/styles.css purerec/android/app/src/main/assets/web/styles.css
-          cp purerec/windows/web/app.js purerec/android/app/src/main/assets/web/app.js
-          cp purerec/windows/web/icon.svg purerec/android/app/src/main/assets/web/icon.svg
-          cp purerec/windows/web/manifest.webmanifest purerec/android/app/src/main/assets/web/manifest.webmanifest
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-node@v4
         with:
-          distribution: temurin
-          java-version: "17"
-      - name: Install Android SDK 35
-        run: |
-          SDKMANAGER="$(find /usr/local/lib/android/sdk/cmdline-tools -type f -name sdkmanager | sort -V | tail -1)"
-          echo "Using $SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
-      - uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.10.2"
-      - name: Build APK
-        run: gradle -p purerec/android assembleDebug --stacktrace
-      - name: Rename APK
-        run: cp purerec/android/app/build/outputs/apk/debug/app-debug.apk PureRec-Android-1.0.apk
-      - name: Upload Android APK
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: purerec/windows/package.json
+      - name: Install dependencies
+        working-directory: purerec/windows
+        run: npm install
+      - name: Build PureRec Setup.exe
+        working-directory: purerec/windows
+        run: npm run dist:win
+      - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
-          name: PureRec-Android-1.0
-          path: PureRec-Android-1.0.apk
+          name: PureRec-Windows-1.0.1
+          path: purerec/windows/dist/PureRec-Setup-1.0.1.exe
           if-no-files-found: error
