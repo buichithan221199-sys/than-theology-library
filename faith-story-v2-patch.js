@@ -3,6 +3,7 @@
   const DEVOTIONAL=SB+'/functions/v1/theology-devotional';
   const IMAGE=SB+'/functions/v1/theology-image';
   function cleanFaithGeneratedText(v){let s=String(v||'');s=s.replace(/\[([^\]\n]{1,160})\]\s*\((https?:\/\/[^)]+)\)/gi,' ');s=s.replace(/\[(?:https?:\/\/)?(?:www\.)?[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\]\s]*)?\]/gi,' ');s=s.replace(/\(https?:\/\/[^)]+\)/gi,' ');s=s.replace(/https?:\/\/\S+/gi,' ');s=s.replace(/cite[^]+/g,' ');s=s.replace(/\[(?:nguồn|source|citation)[^\]]*\]/gi,' ');return s.replace(/[ \t]+/g,' ').replace(/\s+([,.;:!?])/g,'$1').replace(/\n[ \t]+/g,'\n').replace(/\n{3,}/g,'\n\n').trim()}
+  function ensureFaithPrayerEnding(v){let s=cleanFaithGeneratedText(v).trim();s=s.replace(/\s*Trong\s+Danh\s+Chúa\s+Giê[- ]?Xu[\s,.!;:-]*A[- ]?Men[.!\s]*$/iu,'').trim();return (s?s+'\n\n':'')+'Trong Danh Chúa Giê-Xu. A-Men.'}
 
   async function makeCover(l,kind){
     try{
@@ -15,7 +16,7 @@
 
   function previewV2(v,kind){
     const isStory=kind==='faith_story';
-    if(isStory)v={...v,title:cleanFaithGeneratedText(v?.title),summary:cleanFaithGeneratedText(v?.summary),application:cleanFaithGeneratedText(v?.application),prayer:cleanFaithGeneratedText(v?.prayer)};
+    if(isStory)v={...v,title:cleanFaithGeneratedText(v?.title),summary:cleanFaithGeneratedText(v?.summary),application:cleanFaithGeneratedText(v?.application)};v={...v,prayer:ensureFaithPrayerEnding(v?.prayer)};
     const sourceCount=Array.isArray(v?.source_urls)?v.source_urls.length:0;
     const d=overlay(`<div class="modal" style="width:min(900px,96vw)"><button class="x">×</button><h2>Xem trước</h2>
       <div class="field"><label>Tiêu đề</label><input id="t" value="${esc(v.title||'')}"></div>
@@ -24,7 +25,7 @@
       ${v.key_verse_1925?`<div class="field"><label>Câu gốc · Bản 1925</label><textarea id="kv" rows="3">${esc(v.key_verse_1925)}</textarea></div>`:''}
       <div class="field"><label>${isStory?'Câu chuyện đức tin · người thật · sự kiện thật · địa điểm thật · tối đa 500 chữ':'Suy ngẫm ngắn'}</label><textarea id="sum" rows="${isStory?16:6}">${esc(v.summary||'')}</textarea></div>
       ${isStory?`<div class="field"><label>Bài học rút ra · đúng 1 câu</label><textarea id="app" rows="3">${esc(v.application||'')}</textarea></div>`:''}
-      <div class="field"><label>Lời cầu nguyện ngắn</label><textarea id="pr" rows="7">${esc(v.prayer||'')}</textarea></div>
+      <div class="field"><label>Lời cầu nguyện ngắn · kết thúc bằng “Trong Danh Chúa Giê-Xu. A-Men.”</label><textarea id="pr" rows="7">${esc(v.prayer||'')}</textarea></div>
       <div id="err"></div><div class="modalActions"><button class="btn gold" id="save">Lưu + tạo ảnh minh họa</button></div></div>`);
     d.querySelector('#save').onclick=async()=>{
       const b=d.querySelector('#save');
@@ -32,7 +33,7 @@
         b.disabled=true;b.textContent='Đang lưu…';
         const summary=d.querySelector('#sum').value.trim();
         if(isStory&&summary.split(/\s+/).filter(Boolean).length>500){throw Error('Câu chuyện đức tin tối đa 500 chữ. Vui lòng rút ngắn trước khi lưu.')}
-        const lesson={title:d.querySelector('#t').value.trim(),summary,scripture_reference:d.querySelector('#sr').value.trim(),key_verse_reference:v.key_verse_reference||'',key_verse_1925:d.querySelector('#kv')?.value.trim()||'',subtitle:v.subtitle||'',teacher:'',introduction:'',background:'',transition_text:'',application:isStory?(d.querySelector('#app')?.value.trim()||''):'',prayer:d.querySelector('#pr').value.trim(),main_content:[],reflection_questions:[],tags:v.tags||[],source_kind:kind,source_notes:Array.isArray(v?.source_urls)?v.source_urls.join('\n'):'',is_published:true,folder_slug:isStory?'faith-stories':'short-prayers'};
+        const lesson={title:d.querySelector('#t').value.trim(),summary,scripture_reference:d.querySelector('#sr').value.trim(),key_verse_reference:v.key_verse_reference||'',key_verse_1925:d.querySelector('#kv')?.value.trim()||'',subtitle:v.subtitle||'',teacher:'',introduction:'',background:'',transition_text:'',application:isStory?(d.querySelector('#app')?.value.trim()||''):'',prayer:ensureFaithPrayerEnding(d.querySelector('#pr').value),main_content:[],reflection_questions:[],tags:v.tags||[],source_kind:kind,source_notes:Array.isArray(v?.source_urls)?v.source_urls.join('\n'):'',is_published:true,folder_slug:isStory?'faith-stories':'short-prayers'};
         const res=await adm('save_lesson',{lesson});
         d.remove();
         await makeCover(res.lesson,kind);
