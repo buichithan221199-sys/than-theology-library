@@ -69,3 +69,11 @@ window.setAiFunded=setAiFunded;\nfunction aiCostView(){
   <div class="panel" style="overflow:auto"><h3 class="title" style="margin-top:0">200 lần AI gần nhất</h3>${rows.length?`<table style="width:100%;border-collapse:collapse;min-width:760px"><thead><tr style="text-align:left;border-bottom:1px solid #e5ddd1"><th style="padding:10px">Thời gian</th><th style="padding:10px">Bài học</th><th style="padding:10px">Model</th><th style="padding:10px">Input</th><th style="padding:10px">Output</th><th style="padding:10px">Tổng token</th><th style="padding:10px;text-align:right">Chi phí</th></tr></thead><tbody>${rows.map(r=>`<tr style="border-bottom:1px solid #eee8de"><td style="padding:10px;white-space:nowrap">${esc(aiDate(r.created_at))}</td><td style="padding:10px">${esc(r.request_title||r.operation||'Tạo nội dung')}</td><td style="padding:10px;white-space:nowrap">${esc(r.model||'')}</td><td style="padding:10px">${Number(r.input_tokens||0).toLocaleString()}</td><td style="padding:10px">${Number(r.output_tokens||0).toLocaleString()}</td><td style="padding:10px">${Number(r.total_tokens||0).toLocaleString()}</td><td style="padding:10px;text-align:right;font-weight:800">${money(r.estimated_cost_usd,6)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">Chưa có lần tạo AI nào được ghi nhận.</div>'}</div>
   <p class="muted" style="margin-top:12px">Số dư ở đây là số dư theo dõi của riêng app: số tiền bạn nhập − chi phí mà app ghi nhận. Các chi phí API phát sinh ngoài app hoặc loại tác vụ chưa có dữ liệu usage có thể không xuất hiện ở đây.</p>`;
 }
+
+// Robust delegated navigation for dynamically re-rendered UI.
+document.addEventListener('click',function(e){
+  const b=e.target?.closest?.('#aiCostNavBtn');
+  if(!b)return;
+  e.preventDefault();
+  window.openAiCost?.();
+});
