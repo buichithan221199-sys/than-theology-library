@@ -65,6 +65,16 @@
     let f=await findMp3Frame(file,start,Math.min(2*1024*1024,Math.max(0,file.size-start)));
     if(f<0&&start>0)f=await findMp3Frame(file,0,Math.min(2*1024*1024,file.size));
     if(f<0)throw new Error('Không nhận diện được cấu trúc MP3. Hãy xuất lại file dưới dạng MP3 chuẩn rồi thử lại.');
+    const probe=new Uint8Array(await file.slice(f,Math.min(file.size,f+2048)).arrayBuffer());
+    const len=mp3FrameLength(probe,0);
+    if(len>0){
+      const text=new TextDecoder('latin1').decode(probe.slice(0,Math.min(len,probe.length)));
+      if(text.includes('Xing')||text.includes('Info')||text.includes('VBRI')){
+        const next=f+len;
+        const nf=await findMp3Frame(file,next,Math.min(64*1024,Math.max(0,file.size-next)));
+        if(nf>=0)f=nf;
+      }
+    }
     return f;
   }
   async function buildMp3Segments(file){
