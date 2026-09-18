@@ -251,15 +251,27 @@
   function valueOr(existing,next){return next!==undefined&&next!==null&&next!==''?next:existing}
   function arrayOr(existing,next){return Array.isArray(next)&&next.length?next:(Array.isArray(existing)?existing:[])}
 
+  function detailedEphemeralLessonHtml(v){
+    const block=(label,text)=>text?`<div style="margin:14px 0"><div style="font-weight:800;color:#53657c;margin-bottom:5px">${label}</div><div style="white-space:pre-wrap;line-height:1.65">${esc(text)}</div></div>`:'';
+    const points=Array.isArray(v?.main_content)?v.main_content:[];
+    const pointHtml=points.map((p,i)=>{
+      const subs=Array.isArray(p?.subpoints)?p.subpoints:[];
+      const subHtml=subs.map((s,j)=>`<div style="margin:12px 0 0 14px;padding:12px;border-left:3px solid #dcc184;background:#fffdf8;border-radius:8px"><div style="font-weight:800">${i+1}.${j+1} ${esc(s?.title||'')}</div>${s?.scripture_reference?`<div class="muted" style="margin:4px 0 8px">Kinh Thánh: ${esc(s.scripture_reference)}</div>`:''}${block('Giải thích',s?.explanation||'')}${block('Giải thích thực tế',s?.practical_explanation||'')}${block('Ví dụ / minh họa',s?.example||'')}${block('Áp dụng',s?.application||'')}</div>`).join('');
+      return `<div style="margin:16px 0;padding:14px;border:1px solid #e3d7c4;border-radius:12px;background:#fff"><div style="font-weight:900;font-size:18px;color:#15365e">${i+1}. ${esc(p?.title||'')}</div>${p?.scripture_reference?`<div class="muted" style="margin:5px 0 8px">Kinh Thánh: ${esc(p.scripture_reference)}</div>`:''}${block('Nội dung chi tiết',p?.explanation||'')}${subHtml}</div>`;
+    }).join('');
+    return `${block('Mở đầu',v?.introduction||'')}${block('Bối cảnh',v?.background||'')}${block('Chuyển ý',v?.transition_text||'')}${pointHtml||'<div class="muted">Chưa có thân bài chi tiết.</div>'}`;
+  }
+
   function previewEphemeralExistingLesson(v,ctx){
     const old=S.lessons.find(x=>x.id===ctx.lessonId);if(!old)return;
-    const d=overlay(`<div class="modal" style="width:min(920px,96vw)"><button class="x">×</button><h2>Xem trước nội dung tổng hợp</h2><p class="muted">File ${ctx.mode==='audio'?'audio':'hình ảnh'} sẽ <b>không được lưu</b>. Chỉ nội dung tổng hợp bên dưới được cập nhật vào bài học hiện tại.</p><div class="field"><label>Tựa đề</label><input id="epTitle" value="${esc(valueOr(old.title,v?.title||''))}"></div><div class="field"><label>Tóm tắt</label><textarea id="epSummary" rows="7">${esc(valueOr(old.summary,v?.summary||''))}</textarea></div><div id="epErr"></div><div class="modalActions"><button class="btn gold" id="epSave">Cập nhật bài học</button></div></div>`);
+    const detailed=detailedEphemeralLessonHtml(v);
+    const d=overlay(`<div class="modal" style="width:min(980px,96vw)"><button class="x">×</button><h2>Xem trước bài học đầy đủ</h2><p class="muted">File ${ctx.mode==='audio'?'audio':'hình ảnh'} sẽ <b>không được lưu</b>. App cập nhật <b>toàn bộ nội dung chi tiết</b> vào bài học hiện tại; phần tóm tắt chỉ là mục kết luận cuối bài.</p><div class="field"><label>Tựa đề</label><input id="epTitle" value="${esc(valueOr(old.title,v?.title||''))}"></div><div style="margin:14px 0"><div style="font-weight:900;color:#15365e;font-size:19px;margin-bottom:8px">Nội dung bài học chi tiết</div><div style="max-height:52vh;overflow:auto;padding:4px 8px 4px 0">${detailed}</div></div><div class="field"><label>Tóm tắt các ý chính · chỉ phần cuối bài</label><textarea id="epSummary" rows="7">${esc(valueOr(old.summary,v?.summary||''))}</textarea></div><div id="epErr"></div><div class="modalActions"><button class="btn gold" id="epSave">Cập nhật toàn bộ bài học</button></div></div>`);
     d.querySelector('#epSave').onclick=async()=>{
       const b=d.querySelector('#epSave');b.disabled=true;b.textContent='Đang lưu…';
       try{
         const lesson={id:old.id,folder_id:old.folder_id,title:d.querySelector('#epTitle').value.trim()||old.title,subtitle:valueOr(old.subtitle,v?.subtitle||''),scripture_reference:valueOr(old.scripture_reference,v?.scripture_reference||''),key_verse_reference:valueOr(old.key_verse_reference,v?.key_verse_reference||''),key_verse_1925:valueOr(old.key_verse_1925,v?.key_verse_1925||''),teacher:valueOr(old.teacher,v?.teacher||''),lesson_date:old.lesson_date||null,summary:d.querySelector('#epSummary').value.trim(),introduction:valueOr(old.introduction,v?.introduction||''),background:valueOr(old.background,v?.background||''),transition_text:valueOr(old.transition_text,v?.transition_text||''),main_content:arrayOr(old.main_content,v?.main_content),application:valueOr(old.application,v?.application||''),reflection_questions:arrayOr(old.reflection_questions,v?.reflection_questions),prayer:valueOr(old.prayer,v?.prayer||''),tags:arrayOr(old.tags,v?.tags),source_kind:old.source_kind||ctx.mode,is_published:old.is_published!==false};
         await adm('save_lesson',{lesson});d.remove();await load();S.selected=S.lessons.find(x=>x.id===old.id)||null;S.tab=S.selected?'detail':'lessons';render();
-      }catch(e){b.disabled=false;b.textContent='Cập nhật bài học';d.querySelector('#epErr').innerHTML='<div class="error">'+esc(e?.message||String(e))+'</div>'}
+      }catch(e){b.disabled=false;b.textContent='Cập nhật toàn bộ bài học';d.querySelector('#epErr').innerHTML='<div class="error">'+esc(e?.message||String(e))+'</div>'}
     };
   }
 
