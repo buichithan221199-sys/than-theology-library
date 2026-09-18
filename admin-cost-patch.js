@@ -20,14 +20,9 @@ window.lockAdmin=function(){
 const _navBeforeAiCost=nav;
 nav=function(){
   let h=_navBeforeAiCost();
-  if(!h.includes('onclick="openAiCost()"')){
-    const adminPos=h.indexOf('<button class="admin"');
-    const navEnd=adminPos>=0?h.lastIndexOf('</div>',adminPos):-1;
-    const costBtn=`<button class="${S.tab==='ai-cost'?'on':''}" onclick="openAiCost()">💳 <span>Chi phí AI</span></button>`;
-    if(navEnd>=0)h=h.slice(0,navEnd)+costBtn+h.slice(navEnd);
-  }
   if(S.pin){
-    h=h.replace(/<button class="admin" onclick="unlock\(\)">[\s\S]*?<\/button>/,'<button class="admin" onclick="lockAdmin()">🔒 <span>Khóa quản trị</span></button>');
+    h=h.replace(/<button class="admin" onclick="unlock\(\)">[\s\S]*?<\/button>/,
+      `<button class="admin ${S.tab==='ai-cost'?'on':''}" onclick="openAiCost()">💳 <span>Chi phí AI</span></button>`);
   }
   return h;
 };
