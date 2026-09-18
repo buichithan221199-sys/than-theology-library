@@ -1,0 +1,44 @@
+name: Publish PureRec release assets
+
+on:
+  push:
+    branches: [purerec-build]
+    paths:
+      - ".github/workflows/purerec-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: purerec-build
+
+      - name: Download Windows installer artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p release
+          gh run download 35309742854 -n PureRec-Windows-1.0.1 -D release
+
+      - name: Download Android APK artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 35309010684 -n PureRec-Android-1.0 -D release
+
+      - name: Publish or update release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="purerec-v1.0.1"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/PureRec-Setup-1.0.1.exe release/PureRec-Android-1.0.apk --clobber
+          else
+            gh release create "$TAG"               release/PureRec-Setup-1.0.1.exe               release/PureRec-Android-1.0.apk               --target purerec-build               --title "PureRec 1.0.1"               --notes "PureRec installers for Windows and Android. Windows: 1.0.1. Android: 1.0."
+          fi
