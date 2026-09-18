@@ -74,6 +74,14 @@
     let f=await findMp3Frame(file,start,Math.min(2*1024*1024,Math.max(0,file.size-start)));
     if(f<0&&start>0)f=await findMp3Frame(file,0,Math.min(2*1024*1024,file.size));
     if(f<0)throw new Error('Không nhận diện được cấu trúc MP3. Hãy xuất lại file dưới dạng MP3 chuẩn rồi thử lại.');
+    const probe=new Uint8Array(await file.slice(f,Math.min(file.size,f+4096)).arrayBuffer()),info=mp3FrameInfo(probe,0);
+    if(info){
+      const text=new TextDecoder('latin1').decode(probe.slice(0,Math.min(info.frameLength,probe.length)));
+      if(text.includes('Xing')||text.includes('Info')||text.includes('VBRI')){
+        const next=f+info.frameLength,nf=await findMp3Frame(file,next,Math.min(64*1024,Math.max(0,file.size-next)));
+        if(nf>=0)f=nf;
+      }
+    }
     return f;
   }
   async function buildMp3Segments(file){
@@ -109,15 +117,15 @@
     return new Blob([ab],{type:'audio/wav'});
   }
   async function decodeMp3Slice(file,start,end){
-    const AudioCtx=window.AudioContext||window.webkitAudioContext;
-    if(!AudioCtx)throw new Error('Trình duyệt này không hỗ trợ giải mã MP3. Hãy thử Chrome/Edge/Safari mới nhất.');
-    const ctx=new AudioCtx();
+    const OfflineCtx=window.OfflineAudioContext||window.webkitOfflineAudioContext,AudioCtx=window.AudioContext||window.webkitAudioContext;
+    if(!OfflineCtx&&!AudioCtx)throw new Error('Trình duyệt này không hỗ trợ giải mã MP3. Hãy thử Chrome/Edge/Safari mới nhất.');
+    const ctx=OfflineCtx?new OfflineCtx(2,1,44100):new AudioCtx();
     try{
       const raw=await file.slice(start,end,'audio/mpeg').arrayBuffer();
       return await ctx.decodeAudioData(raw.slice(0));
     }catch(e){
       throw new Error('Không giải mã được một đoạn MP3 trong trình duyệt. File có thể dùng codec MP3 không chuẩn hoặc bị lỗi.');
-    }finally{try{await ctx.close()}catch{}}
+    }finally{try{if(typeof ctx.close==='function')await ctx.close()}catch{}}
   }
   async function transcribeWavBlob(blob,pin,fileName,index,total,prompt){
     let path='';
@@ -142,7 +150,7 @@
     for(let i=0;i<parts.length;i++){
       const seg=parts[i];
       window.dispatchEvent(new CustomEvent('theology-audio-progress',{detail:{phase:'decode_mp3',done:i,total:parts.length}}));
-      let decodeStart=i===0?0:Math.max(first,seg.start-256*1024);
+      let decodeStart=i===0?first:Math.max(first,seg.start-256*1024);
       if(i>0){
         const found=await findMp3Frame(file,decodeStart,Math.min(256*1024,Math.max(0,seg.start-decodeStart+4096)));
         if(found>=0&&found<seg.start)decodeStart=found;
