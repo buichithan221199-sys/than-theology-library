@@ -56,7 +56,8 @@ async function setAiFunded(){
   const v=Number(raw);if(!Number.isFinite(v)||v<0){alert('Số tiền không hợp lệ.');return}
   try{await costAdmin('set_budget',{funded_usd:v});await openAiCost()}catch(e){alert(e.message)}
 }
-window.setAiFunded=setAiFunded;\nfunction aiCostView(){
+window.setAiFunded=setAiFunded;
+function aiCostView(){
   if(!S.pin)return '<div class="panel empty">Mục này chỉ dành cho quản trị.</div>';
   if(!S.aiUsage)return '<div class="panel empty">Đang tải dữ liệu chi phí AI…</div>';
   if(S.aiUsage.error)return `<div class="panel"><div class="error">${esc(S.aiUsage.error)}</div></div>`;
