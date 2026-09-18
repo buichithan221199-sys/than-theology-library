@@ -90,7 +90,7 @@ jobs:
       - name: Post-deploy browser smoke test
         run: |
           set -e
-          URL="${{ steps.deployment.outputs.page_url }}?smoke=${GITHUB_SHA}"
+          URL="${{ steps.deployment.outputs.page_url }}?smoke=${GITHUB_SHA}&smoke_ai_cost=1"
           echo "Testing $URL"
           ok=0
           for i in $(seq 1 12); do
@@ -150,5 +150,10 @@ jobs:
               raise SystemExit('Visible app reports a data loading error')
           if 'Thư mục nội dung' not in visible:
               raise SystemExit('Rendered home folder section not found')
-          print('Browser DOM smoke test passed.')
+          html = Path('/tmp/theology-dom.html').read_text(encoding='utf-8', errors='replace')
+          if 'data-ai-cost-click-test="pass"' not in html:
+              raise SystemExit('AI cost navigation click smoke test failed')
+          if 'Mở quản trị' not in visible:
+              raise SystemExit('AI cost click did not open admin PIN modal')
+          print('Browser DOM smoke test passed, including AI cost click.')
           PY
