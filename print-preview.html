@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b2346">
+<title>Bản in · Thư Viện Thần Học</title>
+<style>
+@page{size:Letter;margin:.65in}
+*{box-sizing:border-box}
+html,body{margin:0;background:#eef1f5;color:#1c2b3d;font-family:Arial,"Segoe UI",sans-serif}
+.toolbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px max(14px,env(safe-area-inset-right)) 12px max(14px,env(safe-area-inset-left));background:#0b2346;color:#fff;box-shadow:0 4px 18px #0002}
+.toolbar .left{min-width:0}.toolbar b{display:block;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.toolbar small{opacity:.8}
+.actions{display:flex;gap:8px;flex:0 0 auto}
+button{border:0;border-radius:11px;padding:11px 14px;font-weight:800;cursor:pointer}
+.back{background:#ffffff16;color:#fff;border:1px solid #ffffff35}
+.print{background:linear-gradient(#e5c36a,#c99630);color:#172238}
+.hint{max-width:900px;margin:14px auto 0;padding:10px 14px;border-radius:12px;background:#fff8df;border:1px solid #ead79d;color:#6f571e;font-size:13px}
+.paper{width:min(8.5in,calc(100% - 24px));min-height:11in;margin:16px auto 36px;background:#fff;padding:.65in;box-shadow:0 12px 40px #12233a22}
+.paper{font-size:11.5pt;line-height:1.55}
+.paper h1,.paper h2,.paper h3,.paper h4{font-family:Georgia,"Times New Roman",serif;color:#15365f;page-break-after:avoid}
+.paper h1{font-size:23pt;line-height:1.2;margin:0 0 8px}
+.paper h2{font-size:17pt;margin:24px 0 8px;border-bottom:1px solid #d8cfbf;padding-bottom:5px}
+.paper h3{font-size:14pt;margin:18px 0 6px}
+.paper h4{font-size:12.5pt;margin:14px 0 5px}
+.meta{color:#7a5b19;font-weight:700;margin-bottom:14px}
+.verse{border-left:4px solid #c99a36;background:#fff9e9;padding:12px 15px;margin:14px 0;font-family:Georgia,"Times New Roman",serif}
+.mainpoint{margin:20px 0;break-inside:avoid}
+.subpoint{margin:12px 0 18px 20px;padding-left:14px;border-left:3px solid #d7ad4f;break-inside:avoid}
+.label{font-weight:700;color:#17375f;margin-top:8px}
+.ref{font-size:10.5pt;color:#a57620;font-weight:700;margin:4px 0 8px}
+.question{margin:0 0 18px;break-inside:avoid}
+.option{margin:4px 0 4px 18px}
+.correct{margin:8px 0 0 18px;padding:7px 10px;border-left:3px solid #409762;background:#edf8f0;font-weight:700}
+.explanation{margin:4px 0 0 18px;color:#4f5f70;font-size:10.5pt}
+.footer-note{margin-top:28px;padding-top:10px;border-top:1px solid #ddd;color:#777;font-size:9pt;text-align:center}
+.paper ol{padding-left:24px}.paper p{margin:6px 0 10px;white-space:pre-line}
+.paper img{max-width:100%}
+.error{max-width:700px;margin:60px auto;background:#fff1e8;color:#934918;padding:18px;border-radius:14px}
+@media(max-width:650px){
+  .toolbar{align-items:flex-start;flex-direction:column}.actions{width:100%}.actions button{flex:1;padding:13px 10px}
+  .hint{margin:10px 12px 0}
+  .paper{width:100%;min-height:0;margin:10px 0 110px;padding:22px 18px;box-shadow:none}
+  .paper h1{font-size:25px}.paper h2{font-size:20px}.paper h3{font-size:18px}.paper h4{font-size:16px}
+}
+@media print{
+  html,body{background:#fff}
+  .toolbar,.hint{display:none!important}
+  .paper{width:auto;min-height:0;margin:0;padding:0;box-shadow:none}
+}
+</style>
+</head>
+<body>
+<header class="toolbar">
+  <div class="left"><b id="docTitle">Bản in</b><small>Xem lại nội dung trước khi in hoặc lưu PDF</small></div>
+  <div class="actions"><button class="back" onclick="goBack()">← Trở lại</button><button class="print" onclick="printDocument()">🖨️ In / Lưu PDF</button></div>
+</header>
+<div class="hint" id="hint">Trên iPhone: bấm <b>In / Lưu PDF</b>. Trong màn hình xem trước của iOS, bạn có thể dùng nút Chia sẻ để lưu PDF vào Tệp.</div>
+<main class="paper" id="paper"></main>
+<script>
+const p=new URLSearchParams(location.search), key=p.get('k')||'';
+function goBack(){if(history.length>1)history.back();else location.href='./'}
+function printDocument(){window.print()}
+try{
+  const raw=localStorage.getItem('theology_print_'+key);
+  if(!raw)throw new Error('Không tìm thấy nội dung bản in. Hãy trở lại bài học và bấm Xuất PDF lại.');
+  const data=JSON.parse(raw);
+  if(data.ts&&Date.now()-Number(data.ts)>60*60*1000)throw new Error('Bản xem trước đã hết hạn. Hãy tạo lại từ bài học.');
+  document.title=(data.title||'Bản in')+' · Thư Viện Thần Học';
+  document.getElementById('docTitle').textContent=data.title||'Bản in';
+  document.getElementById('paper').innerHTML=data.body||'';
+}catch(e){
+  document.getElementById('paper').outerHTML='<div class="error">'+String(e.message||e)+'</div>';
+}
+</script>
+</body>
+</html>
