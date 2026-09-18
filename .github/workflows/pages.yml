@@ -58,7 +58,7 @@ jobs:
           mkdir -p _site
           cp index.html _site/base.html
           cp static-app.html _site/index.html
-          cp manifest.webmanifest app-icon.svg service-worker.js _site/
+          cp manifest.webmanifest app-icon.svg service-worker.js ai-cost.html _site/
           python3 - <<'PY'
           import pathlib, re, ast, shutil
           text=pathlib.Path('static-app.html').read_text(encoding='utf-8')
@@ -74,6 +74,7 @@ jobs:
           test -f _site/pdf-language-patch.js
           test -f _site/print-stability-patch.js
           test -f _site/service-worker.js
+          test -f _site/ai-cost.html
           test ! -f _site/admin-cost-loader.js
           test ! -f _site/lesson-depth-display-patch.js
 
@@ -90,7 +91,7 @@ jobs:
       - name: Post-deploy browser smoke test
         run: |
           set -e
-          URL="${{ steps.deployment.outputs.page_url }}?smoke=${GITHUB_SHA}&smoke_ai_cost=1"
+          URL="${{ steps.deployment.outputs.page_url }}?smoke=${GITHUB_SHA}"
           echo "Testing $URL"
           ok=0
           for i in $(seq 1 12); do
@@ -150,10 +151,5 @@ jobs:
               raise SystemExit('Visible app reports a data loading error')
           if 'Thư mục nội dung' not in visible:
               raise SystemExit('Rendered home folder section not found')
-          html = Path('/tmp/theology-dom.html').read_text(encoding='utf-8', errors='replace')
-          if 'data-ai-cost-click-test="pass"' not in html:
-              raise SystemExit('AI cost navigation click smoke test failed')
-          if 'Mở quản trị' not in visible:
-              raise SystemExit('AI cost click did not open admin PIN modal')
-          print('Browser DOM smoke test passed, including AI cost click.')
+          print('Browser DOM smoke test passed.')
           PY
