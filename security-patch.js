@@ -52,15 +52,8 @@
     window.openDevotionalComposer=function(kind){if(!S.pin){unlock(()=>priorDevotionalComposer(kind));return}return priorDevotionalComposer(kind)};
   }
 
-  // Reader mode must never reveal or hint at the management PIN.
-  if(typeof questionHtml==='function'){
-    const priorQuestionHtml=questionHtml;
-    questionHtml=function(q,i){
-      let h=priorQuestionHtml(q,i);
-      if(!S.pin)h=h.replace(/<button class="btn white" onclick="reveal\('[^']+'\)">Hiển thị đáp án đúng<\/button>/g,'<div class="muted" style="margin-top:9px">Đáp án chỉ hiển thị trong chế độ quản trị.</div>');
-      return h;
-    };
-  }
+  // Answer buttons remain visible; protected answer data is still gated by the admin PIN.
+  // Clicking while locked opens the PIN prompt and resumes the requested reveal automatically.
   reveal=async function(id){
     if(!S.pin){unlock(()=>reveal(id));return}
     try{const r=await adm('reveal_answer',{question_id:id});S.revealed[id]=r.answer;render()}catch(e){alert(e?.message||String(e))}
