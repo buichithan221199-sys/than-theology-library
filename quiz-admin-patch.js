@@ -60,7 +60,7 @@
   };
 
   window.showAllQuizAnswers=async function(){
-    if(!S.pin){unlock();return}
+    if(!S.pin){unlock(()=>showAllQuizAnswers());return}
     const d=overlay(`<div class="modal" style="width:min(1050px,97vw)"><button class="x">×</button><h2>Toàn bộ đáp án đúng</h2><p class="muted">Đang tải đáp án…</p><div id="allAnswersBody"></div></div>`);const body=d.querySelector('#allAnswersBody');
     const rows=await Promise.all(S.questions.map(async q=>({q,a:await getAnswerSafe(q.id)})));
     const missing=rows.filter(x=>!selectedLetters(x.a?.correct_option).length).length;d.querySelector('.muted').textContent=`${rows.length} câu · ${missing} câu chưa có đáp án. Một câu có thể có nhiều đáp án đúng và lựa chọn A–Z.`;
@@ -77,7 +77,7 @@
 
   const baseQuizList=quizList;
   quizList=function(){
-    const html=baseQuizList();if(!S.pin)return html;
+    const html=baseQuizList();
     const toolbar=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><button class="btn gold" onclick="showAllQuizAnswers()">Hiển thị toàn bộ đáp án đúng</button></div>`;
     return html.replace('<h2 class="title" style="margin-top:0">Câu hỏi & Đáp án</h2>','<h2 class="title" style="margin-top:0">Câu hỏi & Đáp án</h2>'+toolbar);
   };
