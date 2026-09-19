@@ -11,6 +11,18 @@
     return null;
   }
 
+  async function getAnswersBatch(lessonId=''){
+    try{
+      const r=await adm('reveal_answers',lessonId?{lesson_id:lessonId}:{});
+      const map=r?.answers&&typeof r.answers==='object'?r.answers:{};
+      S.revealed={...(S.revealed||{}),...map};
+      return map;
+    }catch(e){
+      console.error('Không tải được bộ đáp án',e);
+      throw e;
+    }
+  }
+
   function optionRow(k,text,checked=false){
     return `<div class="opt quiz-edit-option" data-option-row="${k}" style="display:grid;grid-template-columns:auto 52px 1fr auto;gap:9px;align-items:center">
       <input type="checkbox" data-answer="${k}" ${checked?'checked':''} style="width:auto">
@@ -61,16 +73,25 @@
 
   window.showAllQuizAnswers=async function(){
     if(!S.pin){unlock(()=>showAllQuizAnswers());return}
+    const lessonId=S.tab==='detail'&&S.selected?.id?S.selected.id:'';
+    const questions=(S.questions||[]).filter(q=>!lessonId||q.lesson_id===lessonId);
     const d=overlay(`<div class="modal" style="width:min(1050px,97vw)"><button class="x">×</button><h2>Toàn bộ đáp án đúng</h2><p class="muted">Đang tải đáp án…</p><div id="allAnswersBody"></div></div>`);const body=d.querySelector('#allAnswersBody');
-    const rows=await Promise.all(S.questions.map(async q=>({q,a:await getAnswerSafe(q.id)})));
-    const missing=rows.filter(x=>!selectedLetters(x.a?.correct_option).length).length;d.querySelector('.muted').textContent=`${rows.length} câu · ${missing} câu chưa có đáp án. Một câu có thể có nhiều đáp án đúng và lựa chọn A–Z.`;
-    body.innerHTML=rows.map(({q,a},i)=>{const lesson=S.lessons.find(l=>l.id===q.lesson_id);const has=selectedLetters(a?.correct_option).length>0;return `<div class="question" style="${has?'':'border-color:#d49b63;background:#fffaf4'}"><div class="muted">${esc(lesson?.title||'Không rõ bài học')}</div><b>Câu ${esc(q.sort_order||i+1)}. ${esc(q.question_text||'')}</b><div style="margin-top:8px"><b>${has?'Đáp án: '+esc(answerText(a.correct_option)):'Chưa có đáp án'}</b></div>${a?.explanation?`<div class="muted" style="margin-top:5px">${esc(a.explanation)}</div>`:''}<div style="margin-top:10px"><button class="btn white" onclick="document.querySelector('.overlay')?.remove();editQuizAnswer('${q.id}')">Sửa lựa chọn & đáp án</button></div></div>`}).join('');
+    try{
+      const map=await getAnswersBatch(lessonId);
+      const rows=questions.map(q=>({q,a:map[q.id]||S.revealed?.[q.id]||null}));
+      const missing=rows.filter(x=>!selectedLetters(x.a?.correct_option).length).length;
+      d.querySelector('.muted').textContent=`${rows.length} câu · ${missing} câu chưa có đáp án. Một câu có thể có nhiều đáp án đúng và lựa chọn A–Z.`;
+      body.innerHTML=rows.map(({q,a},i)=>{const lesson=S.lessons.find(l=>l.id===q.lesson_id);const has=selectedLetters(a?.correct_option).length>0;return `<div class="question" style="${has?'':'border-color:#d49b63;background:#fffaf4'}"><div class="muted">${esc(lesson?.title||'Không rõ bài học')}</div><b>Câu ${esc(q.sort_order||i+1)}. ${esc(q.question_text||'')}</b><div style="margin-top:8px"><b>${has?'Đáp án: '+esc(answerText(a.correct_option)):'Chưa có đáp án'}</b></div>${a?.explanation?`<div class="muted" style="margin-top:5px">${esc(a.explanation)}</div>`:''}<div style="margin-top:10px"><button class="btn white answer-action" onclick="document.querySelector('.overlay')?.remove();editQuizAnswer('${q.id}')">Sửa lựa chọn & đáp án</button></div></div>`}).join('');
+    }catch(e){
+      d.querySelector('.muted').textContent='Không tải được đáp án.';
+      body.innerHTML=`<div class="error">${esc(e?.message||String(e))}</div>`;
+    }
   };
 
   questionHtml=function(q,i){
     const o=q.options||{};const keys=optionKeys(o);const a=S.revealed[q.id];
     const opts=keys.map(k=>o[k]?`<div class="opt">${esc(k)}. ${esc(o[k])}</div>`:'').join('');
-    const answer=a?`<div class="answer"><b>Đáp án: ${esc(a.correct_option)}</b><div>${esc(a.explanation||'')}</div></div>`:`<button class="btn white" onclick="reveal('${q.id}')">Hiển thị đáp án đúng</button>`;
+    const answer=a?`<div class="answer"><b>Đáp án: ${esc(a.correct_option)}</b><div>${esc(a.explanation||'')}</div></div>`:`<button class="btn white answer-action" onclick="reveal('${q.id}')">Hiển thị đáp án đúng</button>`;
     const admin=S.pin?`<div style="margin-top:9px"><button class="btn white" onclick="editQuizAnswer('${q.id}')">✎ Sửa lựa chọn & đáp án</button></div>`:'';
     return `<div class="question"><b>Câu ${i+1}. ${esc(q.question_text)}</b><div class="opts">${opts}</div>${answer}${admin}</div>`;
   };
@@ -78,7 +99,7 @@
   const baseQuizList=quizList;
   quizList=function(){
     const html=baseQuizList();
-    const toolbar=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><button class="btn gold" onclick="showAllQuizAnswers()">Hiển thị toàn bộ đáp án đúng</button></div>`;
+    const toolbar=`<div class="quiz-action-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><button class="btn gold answer-action" onclick="showAllQuizAnswers()">Hiển thị toàn bộ đáp án đúng</button></div>`;
     return html.replace('<h2 class="title" style="margin-top:0">Câu hỏi & Đáp án</h2>','<h2 class="title" style="margin-top:0">Câu hỏi & Đáp án</h2>'+toolbar);
   };
 })();
