@@ -121,15 +121,15 @@
     const label=(lang==='en'?'QUESTION':'CÂU')+' '+(q.sort_order||'');
     s.addText(label,{x:.62,y:.42,w:2.7,h:.3,fontFace:'Aptos',fontSize:11,bold:true,color:'B08324',charSpace:1.3,margin:0});
     const qt=String(q.question_text||''),qlen=qt.length;
-    const qFont=qlen>260?18:qlen>190?20:qlen>125?22:25;
-    const qH=qlen>260?1.72:qlen>190?1.52:qlen>125?1.34:1.12;
+    const qFont=qlen>360?14:qlen>280?16:qlen>210?18:qlen>150?20:qlen>100?22:25;
+    const qH=qlen>360?2.05:qlen>280?1.88:qlen>210?1.68:qlen>150?1.48:qlen>100?1.28:1.08;
     const qY=.82;
     s.addText(qt,{x:.62,y:qY,w:12.05,h:qH,fontFace:'Georgia',bold:true,fontSize:qFont,color:'15365F',fit:'shrink',margin:.02,valign:'mid'});
     const opts=quizOptionData(q),nOpt=Math.max(opts.length,1);
     const startY=qY+qH+.24,endY=6.85,gap=.11,available=Math.max(1.8,endY-startY);
-    const rowH=Math.max(.62,Math.min(.92,(available-gap*(nOpt-1))/nOpt));
+    const rowH=Math.max(.42,Math.min(.92,(available-gap*(nOpt-1))/nOpt));
     const totalOptChars=opts.reduce((sum,o)=>sum+String(o.text||'').length,0);
-    const optFont=totalOptChars>420?13:totalOptChars>280?14:totalOptChars>170?16:18;
+    const optFont=totalOptChars>620?10:totalOptChars>480?11:totalOptChars>360?12:totalOptChars>260?14:totalOptChars>170?16:18;
     opts.forEach((o,i)=>{
       const y=startY+i*(rowH+gap),circle=Math.min(.48,rowH-.16),cy=y+(rowH-circle)/2;
       s.addShape(shape(pptx,'roundRect'),{x:.72,y:y,w:11.9,h:rowH,fill:{color:'FFFFFF'},line:{color:'DED6C9',width:1.1}});
@@ -235,11 +235,11 @@
         const olen=(it.options||[]).reduce((n,o)=>n+String(o.text||'').length,0);
         const qcls=qlen>260?'q-xxl':qlen>190?'q-xl':qlen>125?'q-lg':'q-md';
         const ocls=olen>420?'o-xxl':olen>280?'o-xl':olen>170?'o-lg':'o-md';
-        inner='<div class="ppt-q-label">'+escP(it.title||'')+'</div>'
+        inner='<div class="ppt-quiz-fit"><div class="ppt-q-label">'+escP(it.title||'')+'</div>'
           +'<div class="ppt-q-question '+qcls+'">'+escP(it.question||'')+'</div>'
           +'<div class="ppt-q-options '+ocls+' count-'+String((it.options||[]).length)+'">'
           +(it.options||[]).map(o=>'<div class="ppt-q-opt"><b>'+escP(o.key)+'</b><span>'+escP(o.text)+'</span></div>').join('')
-          +'</div>';      }else if(it.quizAnswer){
+          +'</div></div>';      }else if(it.quizAnswer){
         inner=`<div class="ppt-q-label answer">${escP(it.title||'')}</div><div class="ppt-a-question">${escP(it.question||'')}</div><div class="ppt-answer-box"><small>${data.opt.lang==='en'?'CORRECT ANSWER':'ĐÁP ÁN ĐÚNG'}</small><b>${escP(it.answer||'—')}</b><span>${escP(it.answerText||'')}</span></div>${it.explanation?`<div class="ppt-a-explain">${escP(it.explanation)}</div>`:''}`;
       }else{
         inner=`<div class="ppt-preview-text"><small>Slide ${i+1}/${count}</small><h3>${escP(it.title||'')}</h3>${it.body?`<p>${escP(it.body).replace(/\n/g,'<br>')}</p>`:''}</div>`;
@@ -264,11 +264,11 @@
       .ppt-preview-slide.quiz{display:flex;flex-direction:column}
       .ppt-q-label{font-size:10px;font-weight:900;letter-spacing:1px;color:#a97d24;text-transform:uppercase;margin-bottom:5px;flex:0 0 auto}
       .ppt-q-label.answer{color:#4c8b62}
-      .ppt-q-question{font-family:Georgia,serif;font-weight:700;line-height:1.12;padding-right:58px;flex:0 1 auto;margin-bottom:7px;overflow:hidden}
-      .ppt-q-question.q-md{font-size:18px}.ppt-q-question.q-lg{font-size:16px}.ppt-q-question.q-xl{font-size:14px}.ppt-q-question.q-xxl{font-size:12.5px}
+      .ppt-quiz-fit{display:flex;flex-direction:column;width:100%;height:100%;transform-origin:top left}.ppt-q-question{font-family:Georgia,serif;font-weight:700;line-height:1.1;padding-right:58px;flex:0 0 auto;margin-bottom:7px;overflow:visible}
+      .ppt-q-question.q-md{font-size:17px}.ppt-q-question.q-lg{font-size:15px}.ppt-q-question.q-xl{font-size:12.8px}.ppt-q-question.q-xxl{font-size:10.8px}
       .ppt-q-options{display:grid;gap:5px;margin-top:auto;flex:0 0 auto}
       .ppt-q-opt{display:grid;grid-template-columns:24px 1fr;gap:7px;align-items:center;background:#fff;border:1px solid #e1d9cc;border-radius:8px;padding:4px 7px;line-height:1.15;min-height:31px}
-      .ppt-q-options.o-md .ppt-q-opt{font-size:11px}.ppt-q-options.o-lg .ppt-q-opt{font-size:10.5px}.ppt-q-options.o-xl .ppt-q-opt{font-size:9.5px}.ppt-q-options.o-xxl .ppt-q-opt{font-size:8.7px}
+      .ppt-q-options.o-md .ppt-q-opt{font-size:10.8px}.ppt-q-options.o-lg .ppt-q-opt{font-size:9.8px}.ppt-q-options.o-xl .ppt-q-opt{font-size:8.8px}.ppt-q-options.o-xxl .ppt-q-opt{font-size:7.8px}
       .ppt-q-opt b{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#15365f;color:white;font-size:9.5px}
       .ppt-a-question{font:700 15px Georgia,serif;line-height:1.18;margin:8px 0 12px;padding-right:52px}
       .ppt-answer-box{display:grid;grid-template-columns:auto 42px 1fr;gap:9px;align-items:center;background:#eaf5ed;border:1px solid #8eb99a;border-radius:9px;padding:9px}
@@ -276,6 +276,20 @@
       .ppt-a-explain{margin-top:9px;font-size:10.5px;line-height:1.25;color:#425466}
       @media(max-width:650px){.ppt-preview-grid{grid-template-columns:1fr}.ppt-preview-text h3{font-size:20px}.ppt-preview-text{inset:14px}.ppt-preview-text p{-webkit-line-clamp:5}.ppt-q-question.q-md{font-size:17px}.ppt-q-question.q-lg{font-size:15px}.ppt-q-question.q-xl{font-size:13px}.ppt-q-question.q-xxl{font-size:11.5px}.ppt-q-opt{padding:3px 6px;min-height:28px}.ppt-q-options{gap:4px}}
     </style><div class="ppt-preview-grid">${cards}</div><div class="modalActions" style="position:sticky;bottom:0;background:#fff;padding-top:14px"><button class="btn white" id="pptBack">← Chọn lại</button><button class="btn gold" id="pptMake">Tạo & tải PowerPoint</button></div></div>`);
+    requestAnimationFrame(()=>{
+      d.querySelectorAll('.ppt-preview-slide.quiz').forEach(slide=>{
+        const fit=slide.querySelector('.ppt-quiz-fit');if(!fit)return;
+        fit.style.transform='none';fit.style.width='100%';fit.style.height='100%';
+        const availH=slide.clientHeight-32,availW=slide.clientWidth-36;
+        const needH=fit.scrollHeight,needW=fit.scrollWidth;
+        const scale=Math.min(1,availH/Math.max(needH,1),availW/Math.max(needW,1));
+        if(scale<.999){
+          fit.style.transform='scale('+scale+')';
+          fit.style.width=(100/scale)+'%';
+          fit.style.height=(100/scale)+'%';
+        }
+      });
+    });
     d.querySelector('#pptBack').onclick=()=>{d.remove();choose(async opt=>{await runPptFlow(data.original,opt)})};
     d.querySelector('#pptMake').onclick=async()=>{d.remove();await onConfirm()};
   }
