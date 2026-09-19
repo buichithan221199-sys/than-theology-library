@@ -53,8 +53,8 @@ const _detailPdfExport=detail;
 detail=function(){
  try{
   let h=_detailPdfExport();if(!S||!S.selected)return h;
-  const answerBtn=`<button class="btn white" onclick="exportQuizAnswerPdf()">✅ Xuất PDF trắc nghiệm + đáp án</button>`;
-  const bar=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 20px"><button class="btn gold" onclick="exportLessonPdf()">📘 Xuất PDF bài học</button><button class="btn white" onclick="exportQuizPdf()">📝 Xuất PDF trắc nghiệm</button>${answerBtn}</div>`;
+  const answerBtn=`<button class="btn white answer-action" onclick="exportQuizAnswerPdf()">✅ Xuất PDF trắc nghiệm + đáp án</button>`;
+  const bar=`<div class="pdf-action-toolbar" style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 20px"><button class="btn gold" onclick="exportLessonPdf()">📘 Xuất PDF bài học</button><button class="btn white" onclick="exportQuizPdf()">📝 Xuất PDF trắc nghiệm</button>${answerBtn}</div>`;
   return h.includes('<article class="panel lesson">')?h.replace('<article class="panel lesson">','<article class="panel lesson">'+bar):bar+h;
  }catch(e){console.error('detail export patch error',e);return _detailPdfExport();}
 };
