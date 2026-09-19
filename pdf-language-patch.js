@@ -37,7 +37,7 @@
     let payload={lesson:{title:l.title,scripture_reference:l.scripture_reference},questions:qs},box=null;try{if(lang==='en'){box=waitBox('Đang dịch trắc nghiệm sang English…');payload=await translatePayload(payload,'quiz')}box?.remove();openPrintablePdf((payload.lesson?.title||l.title||'Quiz')+(lang==='en'?' - Quiz':' - Trắc nghiệm'),renderQuiz(payload.lesson,payload.questions,lang,false))}catch(e){box?.remove();alert(e.message||String(e))}
   }
   async function quizAnswerExport(lang){
-    if(!S?.pin){alert('Hãy mở Quản trị trước để xuất PDF có đáp án.');return}const l=S?.selected;if(!l)return;const qs=(S.questions||[]).filter(q=>q?.lesson_id===l.id);if(!qs.length){alert('Bài học này chưa có câu hỏi trắc nghiệm.');return}
+    if(!S?.pin){unlock(()=>quizAnswerExport(lang));return}const l=S?.selected;if(!l)return;const qs=(S.questions||[]).filter(q=>q?.lesson_id===l.id);if(!qs.length){alert('Bài học này chưa có câu hỏi trắc nghiệm.');return}
     const rows=[];for(const q of qs){let a=S.revealed?.[q.id]||null;if(!a){try{const r=await adm('reveal_answer',{question_id:q.id});a=r?.answer||null;if(a)S.revealed[q.id]=a}catch{}}rows.push({...q,answer:a||{correct_option:'',explanation:''}})}
     let payload={lesson:{title:l.title,scripture_reference:l.scripture_reference},questions:rows},box=null;try{if(lang==='en'){box=waitBox('Đang dịch bản đáp án sang English…');payload=await translatePayload(payload,'quiz_answers')}box?.remove();openPrintablePdf((payload.lesson?.title||l.title||'Quiz')+(lang==='en'?' - Quiz Answer Key':' - Trắc nghiệm có đáp án'),renderQuiz(payload.lesson,payload.questions,lang,true))}catch(e){box?.remove();alert(e.message||String(e))}
   }
