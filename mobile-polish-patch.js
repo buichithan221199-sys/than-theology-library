@@ -59,6 +59,28 @@
         color:#fff!important
       }
       .side .nav button.on,.side .nav button:hover{transform:none!important}
+      .answer-action{
+        min-height:52px!important;
+        padding:12px 14px!important;
+        font-size:14px!important;
+        line-height:1.25!important;
+        touch-action:manipulation!important;
+        -webkit-tap-highlight-color:transparent
+      }
+      .question>.answer-action{
+        width:100%!important;
+        margin-top:8px!important
+      }
+      .quiz-action-toolbar,.pdf-action-toolbar{
+        display:grid!important;
+        grid-template-columns:1fr!important;
+        gap:10px!important
+      }
+      .quiz-action-toolbar .btn,.pdf-action-toolbar .btn{
+        width:100%!important;
+        min-height:52px!important;
+        justify-content:center!important
+      }
       .content{padding-bottom:calc(112px + env(safe-area-inset-bottom))!important}
       .top{gap:8px}.top h1{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .top>.btn{flex:0 0 auto;padding:10px 11px;font-size:12px}
