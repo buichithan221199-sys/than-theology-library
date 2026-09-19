@@ -142,16 +142,23 @@
   async function addQuizAnswerSlide(pptx,q,lang,page){
     const s=pptx.addSlide();bg(pptx,s,'F8F7F1');
     s.addShape(shape(pptx,'rect'),{x:0,y:0,w:13.333,h:.18,fill:{color:'4C8B62'},line:{color:'4C8B62'}});
-    s.addText(`${lang==='en'?'ANSWER · QUESTION':'ĐÁP ÁN · CÂU'} ${q.sort_order||''}`,{x:.62,y:.48,w:3.9,h:.3,fontFace:'Aptos',fontSize:11,bold:true,color:'4C8B62',charSpace:1.1,margin:0});
-    title(s,q.question_text||'',.62,.9,12.05,1.12,21,'15365F');
+    const qtxt=String(q.question_text||''),qlen=qtxt.length;
+    const qFont=qlen>300?13:qlen>220?14:qlen>150?16:18;
+    const qH=qlen>300?.92:qlen>220?.82:qlen>150?.72:.62;
     const letters=correctLetters(q),answerLabel=letters.length?letters.join(', '):'—',answerText=correctOptionText(q);
-    s.addShape(shape(pptx,'roundRect'),{x:.72,y:2.28,w:11.9,h:1.55,fill:{color:'EAF5ED'},line:{color:'7FB18E',width:1.3}});
-    s.addText(lang==='en'?'CORRECT ANSWER':'ĐÁP ÁN ĐÚNG',{x:1.0,y:2.58,w:2.15,h:.26,fontFace:'Aptos',fontSize:10,bold:true,color:'4C8B62',charSpace:1.1,margin:0});
-    s.addText(answerLabel,{x:3.02,y:2.4,w:1.35,h:.7,fontFace:'Georgia',fontSize:30,bold:true,color:'2E6E45',align:'center',margin:0});
-    if(answerText)s.addText(answerText,{x:4.45,y:2.42,w:7.75,h:.85,fontFace:'Aptos',fontSize:18,bold:true,color:'234333',fit:'shrink',margin:.02,valign:'mid'});
-    if(q.answer?.explanation){
-      s.addText(lang==='en'?'Explanation':'Giải thích',{x:.76,y:4.18,w:2.2,h:.3,fontFace:'Aptos',fontSize:11,bold:true,color:'A47C25',charSpace:.8,margin:0});
-      s.addText(String(q.answer.explanation),{x:.78,y:4.58,w:11.75,h:1.55,fontFace:'Aptos',fontSize:17,color:'314155',fit:'shrink',margin:.03});
+    const aLen=answerText.length,answerFont=aLen>260?18:aLen>180?20:aLen>110?22:26;
+    const explanation=String(q.answer?.explanation||''),eLen=explanation.length,explainFont=eLen>700?11:eLen>500?12:eLen>320?13:eLen>180?14:15;
+    s.addText((lang==='en'?'ANSWER · QUESTION':'ĐÁP ÁN · CÂU')+' '+(q.sort_order||''),{x:.62,y:.4,w:3.9,h:.28,fontFace:'Aptos',fontSize:10,bold:true,color:'4C8B62',charSpace:1.1,margin:0});
+    s.addText(qtxt,{x:.62,y:.78,w:12.0,h:qH,fontFace:'Georgia',bold:true,fontSize:qFont,color:'15365F',fit:'shrink',margin:.02,valign:'mid'});
+    const answerY=.78+qH+.16,answerH=2.05;
+    s.addShape(shape(pptx,'roundRect'),{x:.72,y:answerY,w:11.9,h:answerH,fill:{color:'EAF5ED'},line:{color:'7FB18E',width:1.4}});
+    s.addText(lang==='en'?'CORRECT ANSWER':'ĐÁP ÁN ĐÚNG',{x:.98,y:answerY+.22,w:2.15,h:.26,fontFace:'Aptos',fontSize:10,bold:true,color:'4C8B62',charSpace:1.1,margin:0});
+    s.addText(answerLabel,{x:1.0,y:answerY+.62,w:1.55,h:.82,fontFace:'Georgia',fontSize:36,bold:true,color:'2E6E45',align:'center',valign:'mid',margin:0});
+    if(answerText)s.addText(answerText,{x:2.78,y:answerY+.28,w:9.45,h:1.48,fontFace:'Aptos',fontSize:answerFont,bold:true,color:'234333',fit:'shrink',margin:.025,valign:'mid'});
+    if(explanation){
+      const ey=answerY+answerH+.28,eh=Math.max(.88,6.82-ey);
+      s.addText(lang==='en'?'Explanation':'Giải thích',{x:.78,y:ey,w:2.0,h:.25,fontFace:'Aptos',fontSize:10,bold:true,color:'A47C25',charSpace:.8,margin:0});
+      s.addText(explanation,{x:.78,y:ey+.36,w:11.72,h:Math.max(.52,eh-.38),fontFace:'Aptos',fontSize:explainFont,color:'314155',fit:'shrink',margin:.025,valign:'top'});
     }
     footer(s,lang,page);
   }
@@ -240,7 +247,7 @@
           +'<div class="ppt-q-options '+ocls+' count-'+String((it.options||[]).length)+'">'
           +(it.options||[]).map(o=>'<div class="ppt-q-opt"><b>'+escP(o.key)+'</b><span>'+escP(o.text)+'</span></div>').join('')
           +'</div></div>';      }else if(it.quizAnswer){
-        inner=`<div class="ppt-q-label answer">${escP(it.title||'')}</div><div class="ppt-a-question">${escP(it.question||'')}</div><div class="ppt-answer-box"><small>${data.opt.lang==='en'?'CORRECT ANSWER':'ĐÁP ÁN ĐÚNG'}</small><b>${escP(it.answer||'—')}</b><span>${escP(it.answerText||'')}</span></div>${it.explanation?`<div class="ppt-a-explain">${escP(it.explanation)}</div>`:''}`;
+        inner=`<div class="ppt-answer-fit"><div class="ppt-q-label answer">${escP(it.title||'')}</div><div class="ppt-a-question">${escP(it.question||'')}</div><div class="ppt-answer-box"><small>${data.opt.lang==='en'?'CORRECT ANSWER':'ĐÁP ÁN ĐÚNG'}</small><b>${escP(it.answer||'—')}</b><span>${escP(it.answerText||'')}</span></div>${it.explanation?`<div class="ppt-a-explain"><strong>${data.opt.lang==='en'?'Explanation':'Giải thích'}:</strong> ${escP(it.explanation)}</div>`:''}</div>`;
       }else{
         inner=`<div class="ppt-preview-text"><small>Slide ${i+1}/${count}</small><h3>${escP(it.title||'')}</h3>${it.body?`<p>${escP(it.body).replace(/\n/g,'<br>')}</p>`:''}</div>`;
       }
@@ -270,15 +277,28 @@
       .ppt-q-opt{display:grid;grid-template-columns:24px 1fr;gap:7px;align-items:center;background:#fff;border:1px solid #e1d9cc;border-radius:8px;padding:4px 7px;line-height:1.15;min-height:31px}
       .ppt-q-options.o-md .ppt-q-opt{font-size:10.8px}.ppt-q-options.o-lg .ppt-q-opt{font-size:9.8px}.ppt-q-options.o-xl .ppt-q-opt{font-size:8.8px}.ppt-q-options.o-xxl .ppt-q-opt{font-size:7.8px}
       .ppt-q-opt b{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#15365f;color:white;font-size:9.5px}
-      .ppt-a-question{font:700 15px Georgia,serif;line-height:1.18;margin:8px 0 12px;padding-right:52px}
-      .ppt-answer-box{display:grid;grid-template-columns:auto 42px 1fr;gap:9px;align-items:center;background:#eaf5ed;border:1px solid #8eb99a;border-radius:9px;padding:9px}
-      .ppt-answer-box small{font-size:8px;font-weight:900;color:#4c8b62}.ppt-answer-box b{font:700 22px Georgia,serif;color:#2e6e45}.ppt-answer-box span{font-size:10.5px;font-weight:700;color:#284438}
-      .ppt-a-explain{margin-top:9px;font-size:10.5px;line-height:1.25;color:#425466}
+      .ppt-answer-fit{display:flex;flex-direction:column;width:100%;height:100%;transform-origin:top left}
+      .ppt-a-question{font:700 12.5px Georgia,serif;line-height:1.13;margin:5px 0 8px;padding-right:52px;flex:0 0 auto}
+      .ppt-answer-box{display:grid;grid-template-columns:76px 48px 1fr;gap:8px;align-items:center;background:#eaf5ed;border:1px solid #8eb99a;border-radius:9px;padding:10px 11px;min-height:74px;flex:0 0 auto}
+      .ppt-answer-box small{font-size:8.5px;font-weight:900;color:#4c8b62;line-height:1.1}.ppt-answer-box b{font:700 27px Georgia,serif;color:#2e6e45;text-align:center}.ppt-answer-box span{font-size:14px;font-weight:800;color:#284438;line-height:1.18}
+      .ppt-a-explain{margin-top:8px;font-size:9.8px;line-height:1.22;color:#425466;overflow:visible}
       @media(max-width:650px){.ppt-preview-grid{grid-template-columns:1fr}.ppt-preview-text h3{font-size:20px}.ppt-preview-text{inset:14px}.ppt-preview-text p{-webkit-line-clamp:5}.ppt-q-question.q-md{font-size:17px}.ppt-q-question.q-lg{font-size:15px}.ppt-q-question.q-xl{font-size:13px}.ppt-q-question.q-xxl{font-size:11.5px}.ppt-q-opt{padding:3px 6px;min-height:28px}.ppt-q-options{gap:4px}}
     </style><div class="ppt-preview-grid">${cards}</div><div class="modalActions" style="position:sticky;bottom:0;background:#fff;padding-top:14px"><button class="btn white" id="pptBack">← Chọn lại</button><button class="btn gold" id="pptMake">Tạo & tải PowerPoint</button></div></div>`);
     requestAnimationFrame(()=>{
       d.querySelectorAll('.ppt-preview-slide.quiz').forEach(slide=>{
         const fit=slide.querySelector('.ppt-quiz-fit');if(!fit)return;
+        fit.style.transform='none';fit.style.width='100%';fit.style.height='100%';
+        const availH=slide.clientHeight-32,availW=slide.clientWidth-36;
+        const needH=fit.scrollHeight,needW=fit.scrollWidth;
+        const scale=Math.min(1,availH/Math.max(needH,1),availW/Math.max(needW,1));
+        if(scale<.999){
+          fit.style.transform='scale('+scale+')';
+          fit.style.width=(100/scale)+'%';
+          fit.style.height=(100/scale)+'%';
+        }
+      });
+      d.querySelectorAll('.ppt-preview-slide.quiz-answer').forEach(slide=>{
+        const fit=slide.querySelector('.ppt-answer-fit');if(!fit)return;
         fit.style.transform='none';fit.style.width='100%';fit.style.height='100%';
         const availH=slide.clientHeight-32,availW=slide.clientWidth-36;
         const needH=fit.scrollHeight,needW=fit.scrollWidth;
