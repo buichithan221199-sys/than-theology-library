@@ -6,7 +6,11 @@
   const cache={};
   const clean=v=>String(v||'').replace(/\r/g,'').replace(/\n{3,}/g,'\n\n').trim();
   const fileName=v=>String(v||'PowerPoint').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().slice(0,90)||'PowerPoint';
+  const escP=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
   function box(text){try{return overlay(`<div class="modal" style="max-width:440px;text-align:center"><h2>${esc(text)}</h2><p class="muted">PowerPoint được tạo tạm trên thiết bị, không lưu vào app.</p></div>`)}catch{return null}}
+  function closeLoading(){const ovs=[...document.querySelectorAll('.overlay')];const last=ovs.at(-1);if(last&&/Đang (tạo|dịch|chuẩn bị|hoàn tất)/.test(last.textContent||''))last.remove()}
+
   function showPptReady(blob,name){
     try{
       if(window.__theologyPptUrl){try{URL.revokeObjectURL(window.__theologyPptUrl)}catch{}}
@@ -16,16 +20,16 @@
       d.querySelector('#pptDownloadReady').onclick=()=>{const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove()};
       const share=d.querySelector('#pptShareReady');
       const file=new File([blob],name,{type:'application/vnd.openxmlformats-officedocument.presentationml.presentation'});
-      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
-        share.onclick=async()=>{try{await navigator.share({files:[file],title:name})}catch(e){if(e?.name!=='AbortError')alert('Không mở được bảng chia sẻ. Hãy dùng nút Tải PowerPoint.')}};
-      }else{
-        share.style.display='none';
-      }
-    }catch(e){
-      console.error(e);alert('PowerPoint đã tạo xong nhưng không mở được nút tải. Hãy thử lại.');
-    }
+      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]}))share.onclick=async()=>{try{await navigator.share({files:[file],title:name})}catch(e){if(e?.name!=='AbortError')alert('Không mở được bảng chia sẻ. Hãy dùng nút Tải PowerPoint.')}};
+      else share.style.display='none';
+    }catch(e){console.error(e);alert('PowerPoint đã tạo xong nhưng không mở được nút tải. Hãy thử lại.')}
   }
-  function choose(run){const d=overlay(`<div class="modal" style="max-width:560px"><button class="x">×</button><h2>Xuất PowerPoint</h2><p class="muted">File .pptx sẽ có ảnh minh họa và tải về thiết bị. App không lưu file này nên không làm đầy bộ nhớ.</p><div class="field"><label>Ngôn ngữ</label><select id="pptLang"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></div><div class="field"><label>Nội dung</label><select id="pptKind"><option value="lesson">Bài học</option><option value="lesson_quiz">Bài học + trắc nghiệm</option><option value="quiz">Chỉ trắc nghiệm</option><option value="quiz_answers">Trắc nghiệm + đáp án</option></select></div><div class="modalActions"><button class="btn gold" id="pptGo">Tạo PowerPoint</button></div></div>`);d.querySelector('#pptGo').onclick=()=>{const opt={lang:d.querySelector('#pptLang').value,kind:d.querySelector('#pptKind').value};d.remove();run(opt)}}
+
+  function choose(run){
+    const d=overlay(`<div class="modal" style="max-width:560px"><button class="x">×</button><h2>Xuất PowerPoint</h2><p class="muted">Bạn sẽ được xem trước slide trước khi tạo file tải về. App không lưu file này nên không làm đầy bộ nhớ.</p><div class="field"><label>Ngôn ngữ</label><select id="pptLang"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></div><div class="field"><label>Nội dung</label><select id="pptKind"><option value="lesson">Bài học</option><option value="lesson_quiz">Bài học + trắc nghiệm</option><option value="quiz">Chỉ trắc nghiệm</option><option value="quiz_answers">Trắc nghiệm + đáp án</option></select></div><div class="modalActions"><button class="btn gold" id="pptGo">Xem trước PowerPoint</button></div></div>`);
+    d.querySelector('#pptGo').onclick=()=>{const opt={lang:d.querySelector('#pptLang').value,kind:d.querySelector('#pptKind').value};d.remove();run(opt)};
+  }
+
   async function ensure(){if(window.PptxGenJS)return;await new Promise((res,rej)=>{const old=document.querySelector('script[data-pptxgen]');if(old){old.addEventListener('load',res,{once:true});old.addEventListener('error',()=>rej(new Error('Không tải được thư viện PowerPoint. Hãy kiểm tra mạng rồi thử lại.')),{once:true});return}const s=document.createElement('script');s.src=CDN;s.async=true;s.dataset.pptxgen='1';s.onload=res;s.onerror=()=>rej(new Error('Không tải được thư viện PowerPoint. Hãy kiểm tra mạng rồi thử lại.'));document.head.appendChild(s)});if(!window.PptxGenJS)throw new Error('Trình duyệt chưa sẵn sàng tạo PowerPoint.')}
   async function translate(payload,kind){const r=await fetch(TRANSLATE,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({target_language:'en',kind,payload})});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'Không dịch được nội dung PowerPoint.');return j.translated}
   function imgFor(text,l){if(l?.cover_image_url)return l.cover_image_url;const t=String(text||'').toLowerCase();if(/thập tự|cầu nguyện|jesus|christ|đức tin|chúa/.test(t))return IMG.cross;if(/kinh thánh|cựu ước|tân ước|thi thiên|châm ngôn|sáng thế|xuất ê|ma-thi|công vụ/.test(t))return IMG.bible;if(/sách|thư viện|kinh điển|tài liệu/.test(t))return IMG.library;if(/học|nghiên cứu|lớp|giảng|thần học|bài/.test(t))return IMG.study;return IMG.scripture}
@@ -43,81 +47,78 @@
   function quizRows(l){return (S.questions||[]).filter(q=>q?.lesson_id===l.id).sort((a,b)=>(Number(a.sort_order)||0)-(Number(b.sort_order)||0))}
   function qText(q,lang,showAnswer=false){const o=normalizeOpts(q.options||{}),keys=optionKeysPdf(o);let t=`${lang==='en'?'Question':'Câu'} ${q.sort_order||''}. ${q.question_text||''}\n`+keys.map(k=>`${k}. ${o[k]}`).join('\n');if(showAnswer){const a=String(q.answer?.correct_option||'').trim();t+=`\n\n${lang==='en'?'Correct answer':'Đáp án đúng'}: ${a||'—'}`;if(q.answer?.explanation)t+=`\n${lang==='en'?'Explanation':'Giải thích'}: ${q.answer.explanation}`}return t}
   async function quizSlides(pptx,qs,lang,page,showAnswers=false){let count=0;for(let i=0;i<qs.length;i+=2){count+=await textSlides(pptx,`${lang==='en'?(showAnswers?'Quiz · Answer Key':'Quiz Questions'):(showAnswers?'Trắc nghiệm · Kèm đáp án':'Câu hỏi trắc nghiệm')} ${i+1}-${Math.min(i+2,qs.length)}`,qs.slice(i,i+2).map(q=>qText(q,lang,showAnswers)).join('\n\n'),IMG.study,lang,page+count)}return count}
-  async function build(l,opt){
-    await ensure();
-    const pptx=new window.PptxGenJS();
-    pptx.layout='LAYOUT_WIDE';
-    pptx.author='Thư Viện Thần Học';
-    pptx.subject='Theology lesson';
-    pptx.title=l.title||'Bài học';
-    pptx.company='Than Theology Library';
-    pptx.theme={headFontFace:'Georgia',bodyFontFace:'Aptos',lang:opt.lang==='en'?'en-US':'vi-VN'};
 
+  async function prepareData(l,opt){
     const lessonMode=opt.kind==='lesson'||opt.kind==='lesson_quiz';
     const quizMode=opt.kind==='lesson_quiz'||opt.kind==='quiz'||opt.kind==='quiz_answers';
     const answerMode=opt.kind==='quiz_answers';
     let lesson=l,qs=quizRows(l),b=null;
-
-    if(answerMode){
-      const r=await adm('reveal_answers',{lesson_id:l.id});
-      const amap=r?.answers||{};
-      qs=qs.map(q=>({...q,answer:amap[q.id]||{correct_option:'',explanation:''}}));
-    }
-
+    if(answerMode){const r=await adm('reveal_answers',{lesson_id:l.id});const amap=r?.answers||{};qs=qs.map(q=>({...q,answer:amap[q.id]||{correct_option:'',explanation:''}}))}
     if(opt.lang==='en'){
       b=box('Đang dịch PowerPoint sang English…');
       if(lessonMode)lesson=await translate(l,'lesson');
-      if(quizMode&&qs.length){
-        const payload=await translate(
-          {lesson:{title:l.title,scripture_reference:l.scripture_reference},questions:qs},
-          answerMode?'quiz_answers':'quiz'
-        );
-        qs=payload?.questions||qs;
-      }
+      if(quizMode&&qs.length){const payload=await translate({lesson:{title:l.title,scripture_reference:l.scripture_reference},questions:qs},answerMode?'quiz_answers':'quiz');qs=payload?.questions||qs}
       b?.remove();b=null;
     }
+    return {original:l,lesson,qs,opt,lessonMode,quizMode,answerMode};
+  }
 
-    b=box('Đang tạo PowerPoint…');
-    let page=1;
+  function previewItems(data){
+    const {lesson,qs,opt,lessonMode,quizMode,answerMode,original}=data,items=[];
+    const push=(title,text,img)=>{for(const part of chunks(text,500))items.push({title,body:part,img})};
+    if(lessonMode){
+      items.push({title:lesson.title||'Bài học',body:[lesson.scripture_reference,lesson.teacher,lesson.lesson_date].filter(Boolean).join(' · '),img:imgFor((lesson.title||'')+' '+(lesson.summary||''),lesson),cover:true});
+      if(lesson.key_verse_1925)push(opt.lang==='en'?'Key Verse':'Câu gốc',`${lesson.key_verse_reference||''}\n\n${lesson.key_verse_1925}`,IMG.scripture);
+      for(const [name,val,img] of [[opt.lang==='en'?'Introduction':'Giới thiệu',lesson.introduction,imgFor(lesson.introduction,lesson)],[opt.lang==='en'?'Background':'Bối cảnh',lesson.background,IMG.library],[opt.lang==='en'?'Transition':'Chuyển ý',lesson.transition_text,IMG.study]])if(val)push(name,val,img);
+      const pts=Array.isArray(lesson.main_content)?lesson.main_content:[];
+      pts.forEach((m,i)=>{const num=i+1;push(`${num}. ${m?.title||''}`,[m?.scripture_reference?`${opt.lang==='en'?'Scripture':'Kinh Thánh'}: ${m.scripture_reference}`:'',m?.explanation||m?.content||''].filter(Boolean).join('\n\n'),imgFor((m?.title||'')+' '+(m?.explanation||''),lesson));(m?.subpoints||[]).forEach((sp,j)=>push(`${num}.${j+1} ${sp?.title||''}`,[sp?.scripture_reference?`${opt.lang==='en'?'Scripture':'Kinh Thánh'}: ${sp.scripture_reference}`:'',sp?.explanation,sp?.practical_explanation,sp?.example,sp?.application].filter(Boolean).join('\n\n'),imgFor((sp?.title||'')+' '+(sp?.explanation||''),lesson)))});
+      if(lesson.summary)push(opt.lang==='en'?'Summary of Key Points':'Tóm tắt các ý chính',lesson.summary,IMG.library);
+      if(lesson.application)push(opt.lang==='en'?'Lesson Takeaway':'Bài học rút ra',lesson.application,IMG.cross);
+      if(lesson.prayer)push(opt.lang==='en'?'Prayer':'Lời cầu nguyện',lesson.prayer,IMG.cross);
+    }else{
+      items.push({title:opt.lang==='en'?(answerMode?'Quiz · Answer Key':'Quiz'):(answerMode?'Trắc nghiệm · Kèm đáp án':'Trắc nghiệm'),body:original.title||'',img:imgFor(original.title,original),cover:true});
+    }
+    if(quizMode){
+      if(!qs.length)throw new Error('Bài học này chưa có câu hỏi trắc nghiệm.');
+      for(let i=0;i<qs.length;i+=2)push(`${opt.lang==='en'?(answerMode?'Quiz · Answer Key':'Quiz Questions'):(answerMode?'Trắc nghiệm · Kèm đáp án':'Câu hỏi trắc nghiệm')} ${i+1}-${Math.min(i+2,qs.length)}`,qs.slice(i,i+2).map(q=>qText(q,opt.lang,answerMode)).join('\n\n'),IMG.study);
+    }
+    items.push({title:opt.lang==='en'?'Thank you':'Cảm ơn',body:opt.lang==='en'?'Theology Library · Faith Journey':'Thư Viện Thần Học · Hành trình đức tin',img:IMG.bible,cover:true});
+    return items;
+  }
 
+  function showPreview(data,onConfirm){
+    const items=previewItems(data),count=items.length;
+    const kindLabel={lesson:'Bài học',lesson_quiz:'Bài học + trắc nghiệm',quiz:'Chỉ trắc nghiệm',quiz_answers:'Trắc nghiệm + đáp án'}[data.opt.kind]||'PowerPoint';
+    const cards=items.map((it,i)=>`<div class="ppt-preview-card"><div class="ppt-preview-slide ${it.cover?'cover':''}"><div class="ppt-preview-img" style="background-image:url('${escP(it.img||IMG.scripture)}')"></div><div class="ppt-preview-shade"></div><div class="ppt-preview-text"><small>Slide ${i+1}/${count}</small><h3>${escP(it.title||'')}</h3>${it.body?`<p>${escP(it.body).replace(/\n/g,'<br>')}</p>`:''}</div></div></div>`).join('');
+    const d=overlay(`<div class="modal" style="width:min(1100px,97vw);max-height:94vh;overflow:auto"><button class="x">×</button><h2>Xem trước PowerPoint</h2><p class="muted">${escP(kindLabel)} · ${data.opt.lang==='en'?'English':'Tiếng Việt'} · ${count} slide. Kiểm tra nhanh bố cục trước khi tạo file.</p><style>.ppt-preview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:14px;margin-top:16px}.ppt-preview-card{background:#f6f1e8;border:1px solid #e4d7c6;border-radius:16px;padding:8px}.ppt-preview-slide{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#fbf8f1;box-shadow:0 10px 28px #10223a22}.ppt-preview-img{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.34}.ppt-preview-slide.cover .ppt-preview-img{opacity:.62}.ppt-preview-shade{position:absolute;inset:0;background:linear-gradient(90deg,#06172df0 0%,#06172db0 48%,#06172d22 100%)}.ppt-preview-slide:not(.cover) .ppt-preview-shade{background:linear-gradient(90deg,#fbf8f1 0%,#fbf8f1e8 62%,#fbf8f144 100%)}.ppt-preview-text{position:absolute;inset:18px 18px 14px 18px;color:#fff;display:flex;flex-direction:column;justify-content:center}.ppt-preview-slide:not(.cover) .ppt-preview-text{color:#17365e}.ppt-preview-text small{font-size:10px;color:#d7ad4f;font-weight:900;text-transform:uppercase}.ppt-preview-text h3{font:700 23px Georgia,serif;line-height:1.12;margin:5px 0 8px;color:inherit}.ppt-preview-text p{font-size:12.5px;line-height:1.34;margin:0;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}@media(max-width:650px){.ppt-preview-grid{grid-template-columns:1fr}.ppt-preview-text h3{font-size:20px}.ppt-preview-text{inset:14px}.ppt-preview-text p{-webkit-line-clamp:5}}</style><div class="ppt-preview-grid">${cards}</div><div class="modalActions" style="position:sticky;bottom:0;background:#fff;padding-top:14px"><button class="btn white" id="pptBack">← Chọn lại</button><button class="btn gold" id="pptMake">Tạo & tải PowerPoint</button></div></div>`);
+    d.querySelector('#pptBack').onclick=()=>{d.remove();choose(async opt=>{await runPptFlow(data.original,opt)})};
+    d.querySelector('#pptMake').onclick=async()=>{d.remove();await onConfirm()};
+  }
+
+  async function buildPrepared(data){
+    await ensure();
+    const {original:l,lesson,qs,opt,lessonMode,quizMode,answerMode}=data;
+    const pptx=new window.PptxGenJS();
+    pptx.layout='LAYOUT_WIDE';pptx.author='Thư Viện Thần Học';pptx.subject='Theology lesson';pptx.title=lesson.title||l.title||'Bài học';pptx.company='Than Theology Library';pptx.theme={headFontFace:'Georgia',bodyFontFace:'Aptos',lang:opt.lang==='en'?'en-US':'vi-VN'};
+    let b=box('Đang tạo PowerPoint…'),page=1;
     if(lessonMode){
       await titleSlide(pptx,lesson,opt.lang);page++;
       if(lesson.key_verse_1925)page+=await textSlides(pptx,opt.lang==='en'?'Key Verse':'Câu gốc',`${lesson.key_verse_reference||''}\n\n${lesson.key_verse_1925}`,IMG.scripture,opt.lang,page);
       for(const [name,val,img] of [[opt.lang==='en'?'Introduction':'Giới thiệu',lesson.introduction,imgFor(lesson.introduction,lesson)],[opt.lang==='en'?'Background':'Bối cảnh',lesson.background,IMG.library],[opt.lang==='en'?'Transition':'Chuyển ý',lesson.transition_text,IMG.study]])if(val)page+=await textSlides(pptx,name,val,img,opt.lang,page);
       const pts=Array.isArray(lesson.main_content)?lesson.main_content:[];
-      for(let i=0;i<pts.length;i++){
-        const m=pts[i]||{},num=i+1,bodyTxt=[m.scripture_reference?`${opt.lang==='en'?'Scripture':'Kinh Thánh'}: ${m.scripture_reference}`:'',m.explanation||m.content||''].filter(Boolean).join('\n\n');
-        page+=await textSlides(pptx,`${num}. ${m.title||''}`,bodyTxt,imgFor((m.title||'')+' '+(m.explanation||''),lesson),opt.lang,page);
-        for(let j=0;j<(m.subpoints||[]).length;j++){
-          const sp=m.subpoints[j]||{},st=`${num}.${j+1} ${sp.title||''}`,txt=[sp.scripture_reference?`${opt.lang==='en'?'Scripture':'Kinh Thánh'}: ${sp.scripture_reference}`:'',sp.explanation,sp.practical_explanation,sp.example,sp.application].filter(Boolean).join('\n\n');
-          page+=await textSlides(pptx,st,txt,imgFor(st+' '+txt,lesson),opt.lang,page);
-        }
-      }
+      for(let i=0;i<pts.length;i++){const m=pts[i]||{},num=i+1,bodyTxt=[m.scripture_reference?`${opt.lang==='en'?'Scripture':'Kinh Thánh'}: ${m.scripture_reference}`:'',m.explanation||m.content||''].filter(Boolean).join('\n\n');page+=await textSlides(pptx,`${num}. ${m.title||''}`,bodyTxt,imgFor((m.title||'')+' '+(m.explanation||''),lesson),opt.lang,page);for(let j=0;j<(m.subpoints||[]).length;j++){const sp=m.subpoints[j]||{},st=`${num}.${j+1} ${sp.title||''}`,txt=[sp.scripture_reference?`${opt.lang==='en'?'Scripture':'Kinh Thánh'}: ${sp.scripture_reference}`:'',sp.explanation,sp.practical_explanation,sp.example,sp.application].filter(Boolean).join('\n\n');page+=await textSlides(pptx,st,txt,imgFor(st+' '+txt,lesson),opt.lang,page)}}
       if(lesson.summary)page+=await textSlides(pptx,opt.lang==='en'?'Summary of Key Points':'Tóm tắt các ý chính',lesson.summary,IMG.library,opt.lang,page);
       if(lesson.application)page+=await textSlides(pptx,opt.lang==='en'?'Lesson Takeaway':'Bài học rút ra',lesson.application,IMG.cross,opt.lang,page);
       if(lesson.prayer)page+=await textSlides(pptx,opt.lang==='en'?'Prayer':'Lời cầu nguyện',lesson.prayer,IMG.cross,opt.lang,page);
-    }else{
-      const cover={...l,title:opt.lang==='en'?(answerMode?'Quiz · Answer Key':'Quiz'):(answerMode?'Trắc nghiệm · Kèm đáp án':'Trắc nghiệm'),summary:l.title,scripture_reference:l.scripture_reference};
-      await titleSlide(pptx,cover,opt.lang);page++;
-    }
-
-    if(quizMode){
-      if(!qs.length)throw new Error('Bài học này chưa có câu hỏi trắc nghiệm.');
-      page+=await quizSlides(pptx,qs,opt.lang,page,answerMode);
-    }
-
-    const end=pptx.addSlide();
-    bg(pptx,end,'06172D');
-    title(end,opt.lang==='en'?'Thank you':'Cảm ơn',.8,2.25,8.5,1,40);
-    body(end,opt.lang==='en'?'Theology Library · Faith Journey':'Thư Viện Thần Học · Hành trình đức tin',.85,3.32,7,.45,17,'D6AF54');
-    await imagePanel(pptx,end,IMG.bible,8.0,0,5.33,7.5);
+    }else{const cover={...l,title:opt.lang==='en'?(answerMode?'Quiz · Answer Key':'Quiz'):(answerMode?'Trắc nghiệm · Kèm đáp án':'Trắc nghiệm'),summary:l.title,scripture_reference:l.scripture_reference};await titleSlide(pptx,cover,opt.lang);page++}
+    if(quizMode){if(!qs.length)throw new Error('Bài học này chưa có câu hỏi trắc nghiệm.');page+=await quizSlides(pptx,qs,opt.lang,page,answerMode)}
+    const end=pptx.addSlide();bg(pptx,end,'06172D');title(end,opt.lang==='en'?'Thank you':'Cảm ơn',.8,2.25,8.5,1,40);body(end,opt.lang==='en'?'Theology Library · Faith Journey':'Thư Viện Thần Học · Hành trình đức tin',.85,3.32,7,.45,17,'D6AF54');await imagePanel(pptx,end,IMG.bible,8.0,0,5.33,7.5);
     const suffix=opt.kind==='quiz'?(opt.lang==='en'?' - Quiz':' - Trac nghiem'):opt.kind==='quiz_answers'?(opt.lang==='en'?' - Quiz Answer Key':' - Trac nghiem dap an'):(opt.lang==='en'?' - English':'');
-    const outName=fileName((lesson.title||l.title||'Bai hoc')+suffix+'.pptx');
-    if(b){const h=b.querySelector('h2');if(h)h.textContent='Đang hoàn tất file PowerPoint…'}
-    const blob=await pptx.write({outputType:'blob'});
-    b?.remove();
-    showPptReady(blob,outName);
+    const outName=fileName((lesson.title||l.title||'Bai hoc')+suffix+'.pptx');if(b){const h=b.querySelector('h2');if(h)h.textContent='Đang hoàn tất file PowerPoint…'}
+    const blob=await pptx.write({outputType:'blob'});b?.remove();showPptReady(blob,outName);
   }
-  window.exportLessonPowerPoint=function(){const l=S?.selected;if(!l){alert('Chưa chọn bài học.');return}choose(async opt=>{const run=async()=>{try{await build(l,opt)}catch(e){const ovs=[...document.querySelectorAll('.overlay')];const last=ovs.at(-1);if(last&&/Đang (tạo|dịch|hoàn tất)/.test(last.textContent||''))last.remove();alert(e?.message||String(e))}};if(opt.kind==='quiz_answers'&&!S.pin){unlock(run);return}await run()})};
+
+  async function runPptFlow(l,opt){const data=await prepareData(l,opt);showPreview(data,async()=>{try{await buildPrepared(data)}catch(e){closeLoading();alert(e?.message||String(e))}})}
+  window.exportLessonPowerPoint=function(){const l=S?.selected;if(!l){alert('Chưa chọn bài học.');return}choose(async opt=>{const run=async()=>{try{await runPptFlow(l,opt)}catch(e){closeLoading();alert(e?.message||String(e))}};if(opt.kind==='quiz_answers'&&!S.pin){unlock(run);return}await run()})};
   const oldDetail=detail;detail=function(){let h=oldDetail();if(!S?.selected)return h;if(h.includes('exportLessonPowerPoint()'))return h;const btn=`<div class="ppt-action-toolbar" style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 20px"><button class="btn white ppt-action" onclick="exportLessonPowerPoint()">📊 Xuất PowerPoint</button></div>`;return h.includes('<article class="panel lesson')?h.replace('<article class="panel lesson',btn+'<article class="panel lesson'):btn+h};
 })();
