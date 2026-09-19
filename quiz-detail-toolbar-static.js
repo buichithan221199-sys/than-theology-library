@@ -6,7 +6,7 @@
     if(!S.selected)return html;
     const lessonQs=S.questions.filter(q=>q.lesson_id===S.selected.id);
     if(!lessonQs.length)return html;
-    const bar=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 18px"><button class="btn gold" onclick="openAnswerKeyUpload('${S.selected.id}')">📥 Tải đáp án trắc nghiệm</button><button class="btn white" onclick="showAllQuizAnswers()">✓ Hiển thị toàn bộ đáp án đúng</button></div>`;
+    const bar=`<div class="quiz-action-toolbar" style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 18px"><button class="btn gold answer-action" onclick="openAnswerKeyUpload('${S.selected.id}')">📥 Tải đáp án trắc nghiệm</button><button class="btn white answer-action" onclick="showAllQuizAnswers()">✓ Hiển thị toàn bộ đáp án đúng</button></div>`;
     const marker='<h3>Câu hỏi trắc nghiệm</h3>';
     if(html.includes(marker))return html.replace(marker,marker+bar);
     return html+bar;
