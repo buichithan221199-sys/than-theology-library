@@ -42,12 +42,9 @@ async function exportQuizAnswerPdf(){
   const l=S?.selected;if(!l){alert('Chưa chọn bài học.');return}
   const qs=(Array.isArray(S.questions)?S.questions:[]).filter(q=>q&&q.lesson_id===l.id);
   if(!qs.length){alert('Bài học này chưa có câu hỏi trắc nghiệm.');return}
-  const rows=[];
-  for(const q of qs){
-    let a=S.revealed?.[q.id]||null;
-    if(!a){try{const r=await adm('reveal_answer',{question_id:q.id});a=r?.answer||null;if(a)S.revealed[q.id]=a}catch(e){console.warn('Không tải được đáp án',q.id,e)}}
-    rows.push({q,a});
-  }
+  let answerMap={};
+  try{const r=await adm('reveal_answers',{lesson_id:l.id});answerMap=r?.answers||{};S.revealed={...(S.revealed||{}),...answerMap}}catch(e){console.warn('Không tải được bộ đáp án',e)}
+  const rows=qs.map(q=>({q,a:answerMap[q.id]||S.revealed?.[q.id]||null}));
   const body=`<h1>Bài trắc nghiệm · Kèm đáp án</h1><div class="meta">${pdfEsc(l.title||'')}</div>${l.scripture_reference?`<div style="margin-bottom:16px"><b>Phân đoạn:</b> ${pdfEsc(l.scripture_reference)}</div>`:''}${rows.map(({q,a},i)=>{const o=normalizeOpts(q.options);const keys=optionKeysPdf(o);const ans=String(a?.correct_option||'').trim()||'Chưa có đáp án';return `<div class="question"><b>Câu ${q.sort_order||i+1}. ${pdfEsc(q.question_text||'')}</b>${keys.map(k=>`<div class="option">${k}. ${pdfEsc(o[k])}</div>`).join('')}<div class="correct">Đáp án đúng: ${pdfEsc(ans)}</div>${a?.explanation?`<div class="explanation"><b>Giải thích:</b> ${pdfEsc(a.explanation)}</div>`:''}</div>`}).join('')}<div class="footer-note">Thư Viện Thần Học · Bản quản trị có đáp án</div>`;
   openPrintablePdf((l.title||'Bài học')+' - Trắc nghiệm có đáp án',body);
  }catch(e){console.error(e);alert('Không thể xuất PDF trắc nghiệm có đáp án.');}
