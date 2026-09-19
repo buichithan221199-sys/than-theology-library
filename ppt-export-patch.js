@@ -45,8 +45,55 @@
   async function titleSlide(pptx,l,lang){const s=pptx.addSlide();bg(pptx,s,'06172D');await imagePanel(pptx,s,imgFor((l.title||'')+' '+(l.summary||''),l),6.95,0,6.39,7.5);s.addShape(shape(pptx,'rect'),{x:0,y:0,w:8.1,h:7.5,fill:{color:'06172D'},line:{color:'06172D'}});s.addText(lang==='en'?'THEOLOGY LESSON':'BÀI HỌC THẦN HỌC',{x:.62,y:.72,w:5.7,h:.32,fontFace:'Aptos',fontSize:10,bold:true,color:'D6AF54',charSpace:1.6});title(s,l.title||'Bài học',.62,1.2,6.45,2.45,35);const meta=[l.scripture_reference,l.teacher,l.lesson_date].filter(Boolean).join(' · ');if(meta)body(s,meta,.65,4.05,6.2,.8,15,'DDE7F3');s.addShape(shape(pptx,'line'),{x:.65,y:5.25,w:2.2,h:0,line:{color:'D6AF54',width:2}});body(s,lang==='en'?'Generated from Theology Library':'Tạo từ Thư Viện Thần Học',.65,5.52,5.4,.4,13,'B8C5D6')}
   async function textSlides(pptx,ttl,txt,url,lang,page){let c=chunks(txt);for(let i=0;i<c.length;i++){const s=pptx.addSlide();bg(pptx,s,'FBF8F1');s.addShape(shape(pptx,'rect'),{x:0,y:0,w:13.333,h:.22,fill:{color:'D5A93F'},line:{color:'D5A93F'}});title(s,ttl+(c.length>1?` (${i+1}/${c.length})`:''),.58,.58,7.15,.86,25,'143D70');body(s,c[i],.62,1.58,7.05,4.95,16);await imagePanel(pptx,s,url);footer(s,lang,page+i)}return c.length}
   function quizRows(l){return (S.questions||[]).filter(q=>q?.lesson_id===l.id).sort((a,b)=>(Number(a.sort_order)||0)-(Number(b.sort_order)||0))}
-  function qText(q,lang,showAnswer=false){const o=normalizeOpts(q.options||{}),keys=optionKeysPdf(o);let t=`${lang==='en'?'Question':'Câu'} ${q.sort_order||''}. ${q.question_text||''}\n`+keys.map(k=>`${k}. ${o[k]}`).join('\n');if(showAnswer){const a=String(q.answer?.correct_option||'').trim();t+=`\n\n${lang==='en'?'Correct answer':'Đáp án đúng'}: ${a||'—'}`;if(q.answer?.explanation)t+=`\n${lang==='en'?'Explanation':'Giải thích'}: ${q.answer.explanation}`}return t}
-  async function quizSlides(pptx,qs,lang,page,showAnswers=false){let count=0;for(let i=0;i<qs.length;i+=2){count+=await textSlides(pptx,`${lang==='en'?(showAnswers?'Quiz · Answer Key':'Quiz Questions'):(showAnswers?'Trắc nghiệm · Kèm đáp án':'Câu hỏi trắc nghiệm')} ${i+1}-${Math.min(i+2,qs.length)}`,qs.slice(i,i+2).map(q=>qText(q,lang,showAnswers)).join('\n\n'),IMG.study,lang,page+count)}return count}
+  function quizOptionData(q){
+    const o=normalizeOpts(q.options||{}),keys=optionKeysPdf(o);
+    return keys.map(k=>({key:k,text:String(o[k]||'')}));
+  }
+  function correctLetters(q){return String(q.answer?.correct_option||'').split(/[^A-Za-z]+/).map(x=>x.trim().toUpperCase()).filter(Boolean)}
+  function correctOptionText(q){
+    const letters=correctLetters(q),opts=quizOptionData(q);
+    const hit=opts.filter(x=>letters.includes(x.key)).map(x=>x.key+'. '+x.text);
+    return hit.join('\n');
+  }
+  async function addQuizQuestionSlide(pptx,q,lang,page){
+    const s=pptx.addSlide();bg(pptx,s,'FCFAF5');
+    s.addShape(shape(pptx,'rect'),{x:0,y:0,w:13.333,h:.18,fill:{color:'D5A93F'},line:{color:'D5A93F'}});
+    s.addText(`${lang==='en'?'QUESTION':'CÂU'} ${q.sort_order||''}`,{x:.62,y:.45,w:2.7,h:.3,fontFace:'Aptos',fontSize:11,bold:true,color:'B08324',charSpace:1.3,margin:0});
+    title(s,q.question_text||'',.62,.88,12.05,1.42,25,'15365F');
+    const opts=quizOptionData(q),n=Math.max(opts.length,1),available=4.45,gap=.12,rowH=Math.min(.83,(available-gap*(n-1))/n),startY=2.38;
+    opts.forEach((o,i)=>{
+      const y=startY+i*(rowH+gap);
+      s.addShape(shape(pptx,'roundRect'),{x:.72,y,w:11.9,h:rowH,rectRadius:.06,fill:{color:'FFFFFF'},line:{color:'DED6C9',width:1.1}});
+      s.addShape(shape(pptx,'ellipse'),{x:.94,y:y+Math.max(.08,(rowH-.48)/2),w:.48,h:.48,fill:{color:'15365F'},line:{color:'15365F'}});
+      s.addText(o.key,{x:.94,y:y+Math.max(.08,(rowH-.48)/2)+.02,w:.48,h:.32,fontFace:'Aptos',fontSize:13,bold:true,color:'FFFFFF',align:'center',margin:0});
+      s.addText(o.text,{x:1.58,y:y+.08,w:10.65,h:Math.max(.42,rowH-.14),fontFace:'Aptos',fontSize:18,color:'24364B',fit:'shrink',valign:'mid',margin:.03});
+    });
+    footer(s,lang,page);
+  }
+  async function addQuizAnswerSlide(pptx,q,lang,page){
+    const s=pptx.addSlide();bg(pptx,s,'F8F7F1');
+    s.addShape(shape(pptx,'rect'),{x:0,y:0,w:13.333,h:.18,fill:{color:'4C8B62'},line:{color:'4C8B62'}});
+    s.addText(`${lang==='en'?'ANSWER · QUESTION':'ĐÁP ÁN · CÂU'} ${q.sort_order||''}`,{x:.62,y:.48,w:3.9,h:.3,fontFace:'Aptos',fontSize:11,bold:true,color:'4C8B62',charSpace:1.1,margin:0});
+    title(s,q.question_text||'',.62,.9,12.05,1.12,21,'15365F');
+    const letters=correctLetters(q),answerLabel=letters.length?letters.join(', '):'—',answerText=correctOptionText(q);
+    s.addShape(shape(pptx,'roundRect'),{x:.72,y:2.28,w:11.9,h:1.55,fill:{color:'EAF5ED'},line:{color:'7FB18E',width:1.3}});
+    s.addText(lang==='en'?'CORRECT ANSWER':'ĐÁP ÁN ĐÚNG',{x:1.0,y:2.58,w:2.15,h:.26,fontFace:'Aptos',fontSize:10,bold:true,color:'4C8B62',charSpace:1.1,margin:0});
+    s.addText(answerLabel,{x:3.02,y:2.4,w:1.35,h:.7,fontFace:'Georgia',fontSize:30,bold:true,color:'2E6E45',align:'center',margin:0});
+    if(answerText)s.addText(answerText,{x:4.45,y:2.42,w:7.75,h:.85,fontFace:'Aptos',fontSize:18,bold:true,color:'234333',fit:'shrink',margin:.02,valign:'mid'});
+    if(q.answer?.explanation){
+      s.addText(lang==='en'?'Explanation':'Giải thích',{x:.76,y:4.18,w:2.2,h:.3,fontFace:'Aptos',fontSize:11,bold:true,color:'A47C25',charSpace:.8,margin:0});
+      s.addText(String(q.answer.explanation),{x:.78,y:4.58,w:11.75,h:1.55,fontFace:'Aptos',fontSize:17,color:'314155',fit:'shrink',margin:.03});
+    }
+    footer(s,lang,page);
+  }
+  async function quizSlides(pptx,qs,lang,page,showAnswers=false){
+    let count=0;
+    for(const q of qs){
+      await addQuizQuestionSlide(pptx,q,lang,page+count);count++;
+      if(showAnswers){await addQuizAnswerSlide(pptx,q,lang,page+count);count++}
+    }
+    return count;
+  }
 
   async function prepareData(l,opt){
     const lessonMode=opt.kind==='lesson'||opt.kind==='lesson_quiz';
@@ -80,7 +127,13 @@
     }
     if(quizMode){
       if(!qs.length)throw new Error('Bài học này chưa có câu hỏi trắc nghiệm.');
-      for(let i=0;i<qs.length;i+=2)push(`${opt.lang==='en'?(answerMode?'Quiz · Answer Key':'Quiz Questions'):(answerMode?'Trắc nghiệm · Kèm đáp án':'Câu hỏi trắc nghiệm')} ${i+1}-${Math.min(i+2,qs.length)}`,qs.slice(i,i+2).map(q=>qText(q,opt.lang,answerMode)).join('\n\n'),IMG.study);
+      for(const q of qs){
+        const opts=quizOptionData(q);
+        items.push({quiz:true,title:`${opt.lang==='en'?'Question':'Câu'} ${q.sort_order||''}`,question:q.question_text||'',options:opts});
+        if(answerMode){
+          items.push({quizAnswer:true,title:`${opt.lang==='en'?'Answer · Question':'Đáp án · Câu'} ${q.sort_order||''}`,question:q.question_text||'',answer:correctLetters(q).join(', ')||'—',answerText:correctOptionText(q),explanation:q.answer?.explanation||''});
+        }
+      }
     }
     items.push({title:opt.lang==='en'?'Thank you':'Cảm ơn',body:opt.lang==='en'?'Theology Library · Faith Journey':'Thư Viện Thần Học · Hành trình đức tin',img:IMG.bible,cover:true});
     return items;
@@ -89,8 +142,44 @@
   function showPreview(data,onConfirm){
     const items=previewItems(data),count=items.length;
     const kindLabel={lesson:'Bài học',lesson_quiz:'Bài học + trắc nghiệm',quiz:'Chỉ trắc nghiệm',quiz_answers:'Trắc nghiệm + đáp án'}[data.opt.kind]||'PowerPoint';
-    const cards=items.map((it,i)=>`<div class="ppt-preview-card"><div class="ppt-preview-slide ${it.cover?'cover':''}"><div class="ppt-preview-img" style="background-image:url('${escP(it.img||IMG.scripture)}')"></div><div class="ppt-preview-shade"></div><div class="ppt-preview-text"><small>Slide ${i+1}/${count}</small><h3>${escP(it.title||'')}</h3>${it.body?`<p>${escP(it.body).replace(/\n/g,'<br>')}</p>`:''}</div></div></div>`).join('');
-    const d=overlay(`<div class="modal" style="width:min(1100px,97vw);max-height:94vh;overflow:auto"><button class="x">×</button><h2>Xem trước PowerPoint</h2><p class="muted">${escP(kindLabel)} · ${data.opt.lang==='en'?'English':'Tiếng Việt'} · ${count} slide. Kiểm tra nhanh bố cục trước khi tạo file.</p><style>.ppt-preview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:14px;margin-top:16px}.ppt-preview-card{background:#f6f1e8;border:1px solid #e4d7c6;border-radius:16px;padding:8px}.ppt-preview-slide{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#fbf8f1;box-shadow:0 10px 28px #10223a22}.ppt-preview-img{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.34}.ppt-preview-slide.cover .ppt-preview-img{opacity:.62}.ppt-preview-shade{position:absolute;inset:0;background:linear-gradient(90deg,#06172df0 0%,#06172db0 48%,#06172d22 100%)}.ppt-preview-slide:not(.cover) .ppt-preview-shade{background:linear-gradient(90deg,#fbf8f1 0%,#fbf8f1e8 62%,#fbf8f144 100%)}.ppt-preview-text{position:absolute;inset:18px 18px 14px 18px;color:#fff;display:flex;flex-direction:column;justify-content:center}.ppt-preview-slide:not(.cover) .ppt-preview-text{color:#17365e}.ppt-preview-text small{font-size:10px;color:#d7ad4f;font-weight:900;text-transform:uppercase}.ppt-preview-text h3{font:700 23px Georgia,serif;line-height:1.12;margin:5px 0 8px;color:inherit}.ppt-preview-text p{font-size:12.5px;line-height:1.34;margin:0;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}@media(max-width:650px){.ppt-preview-grid{grid-template-columns:1fr}.ppt-preview-text h3{font-size:20px}.ppt-preview-text{inset:14px}.ppt-preview-text p{-webkit-line-clamp:5}}</style><div class="ppt-preview-grid">${cards}</div><div class="modalActions" style="position:sticky;bottom:0;background:#fff;padding-top:14px"><button class="btn white" id="pptBack">← Chọn lại</button><button class="btn gold" id="pptMake">Tạo & tải PowerPoint</button></div></div>`);
+    const cards=items.map((it,i)=>{
+      let inner='';
+      if(it.quiz){
+        inner=`<div class="ppt-q-label">${escP(it.title||'')}</div><div class="ppt-q-question">${escP(it.question||'')}</div><div class="ppt-q-options">${(it.options||[]).map(o=>`<div class="ppt-q-opt"><b>${escP(o.key)}</b><span>${escP(o.text)}</span></div>`).join('')}</div>`;
+      }else if(it.quizAnswer){
+        inner=`<div class="ppt-q-label answer">${escP(it.title||'')}</div><div class="ppt-a-question">${escP(it.question||'')}</div><div class="ppt-answer-box"><small>${data.opt.lang==='en'?'CORRECT ANSWER':'ĐÁP ÁN ĐÚNG'}</small><b>${escP(it.answer||'—')}</b><span>${escP(it.answerText||'')}</span></div>${it.explanation?`<div class="ppt-a-explain">${escP(it.explanation)}</div>`:''}`;
+      }else{
+        inner=`<div class="ppt-preview-text"><small>Slide ${i+1}/${count}</small><h3>${escP(it.title||'')}</h3>${it.body?`<p>${escP(it.body).replace(/\n/g,'<br>')}</p>`:''}</div>`;
+      }
+      return `<div class="ppt-preview-card"><div class="ppt-preview-slide ${it.cover?'cover':''} ${it.quiz?'quiz':''} ${it.quizAnswer?'quiz-answer':''}">${(!it.quiz&&!it.quizAnswer)?`<div class="ppt-preview-img" style="background-image:url('${escP(it.img||IMG.scripture)}')"></div><div class="ppt-preview-shade"></div>`:''}<div class="ppt-slide-num">Slide ${i+1}/${count}</div>${inner}</div></div>`;
+    }).join('');
+    const d=overlay(`<div class="modal" style="width:min(1100px,97vw);max-height:94vh;overflow:auto"><button class="x">×</button><h2>Xem trước PowerPoint</h2><p class="muted">${escP(kindLabel)} · ${data.opt.lang==='en'?'English':'Tiếng Việt'} · ${count} slide. Phần trắc nghiệm dùng 1 câu/slide để dễ đọc khi trình chiếu.</p><style>
+      .ppt-preview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:14px;margin-top:16px}
+      .ppt-preview-card{background:#f6f1e8;border:1px solid #e4d7c6;border-radius:16px;padding:8px}
+      .ppt-preview-slide{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#fbf8f1;box-shadow:0 10px 28px #10223a22}
+      .ppt-preview-img{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.34}
+      .ppt-preview-slide.cover .ppt-preview-img{opacity:.62}
+      .ppt-preview-shade{position:absolute;inset:0;background:linear-gradient(90deg,#06172df0 0%,#06172db0 48%,#06172d22 100%)}
+      .ppt-preview-slide:not(.cover):not(.quiz):not(.quiz-answer) .ppt-preview-shade{background:linear-gradient(90deg,#fbf8f1 0%,#fbf8f1e8 62%,#fbf8f144 100%)}
+      .ppt-slide-num{position:absolute;top:11px;right:14px;z-index:4;font-size:9px;font-weight:900;color:#a97d24;text-transform:uppercase}
+      .ppt-preview-text{position:absolute;inset:18px;color:#fff;display:flex;flex-direction:column;justify-content:center}
+      .ppt-preview-slide:not(.cover):not(.quiz):not(.quiz-answer) .ppt-preview-text{color:#17365e}
+      .ppt-preview-text small{font-size:10px;color:#d7ad4f;font-weight:900;text-transform:uppercase}
+      .ppt-preview-text h3{font:700 23px Georgia,serif;line-height:1.12;margin:5px 0 8px;color:inherit}
+      .ppt-preview-text p{font-size:12.5px;line-height:1.34;margin:0;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+      .ppt-preview-slide.quiz,.ppt-preview-slide.quiz-answer{padding:18px;background:#fcfaf5;color:#17365e}
+      .ppt-q-label{font-size:10px;font-weight:900;letter-spacing:1px;color:#a97d24;text-transform:uppercase;margin-bottom:7px}
+      .ppt-q-label.answer{color:#4c8b62}
+      .ppt-q-question{font:700 18px Georgia,serif;line-height:1.18;padding-right:56px;margin-bottom:11px}
+      .ppt-q-options{display:grid;gap:6px}
+      .ppt-q-opt{display:grid;grid-template-columns:25px 1fr;gap:7px;align-items:center;background:#fff;border:1px solid #e1d9cc;border-radius:8px;padding:5px 7px;font-size:11px;line-height:1.2}
+      .ppt-q-opt b{display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:#15365f;color:white;font-size:10px}
+      .ppt-a-question{font:700 15px Georgia,serif;line-height:1.18;margin:8px 0 12px;padding-right:52px}
+      .ppt-answer-box{display:grid;grid-template-columns:auto 42px 1fr;gap:9px;align-items:center;background:#eaf5ed;border:1px solid #8eb99a;border-radius:9px;padding:9px}
+      .ppt-answer-box small{font-size:8px;font-weight:900;color:#4c8b62}.ppt-answer-box b{font:700 22px Georgia,serif;color:#2e6e45}.ppt-answer-box span{font-size:10.5px;font-weight:700;color:#284438}
+      .ppt-a-explain{margin-top:9px;font-size:10.5px;line-height:1.25;color:#425466}
+      @media(max-width:650px){.ppt-preview-grid{grid-template-columns:1fr}.ppt-preview-text h3{font-size:20px}.ppt-preview-text{inset:14px}.ppt-preview-text p{-webkit-line-clamp:5}.ppt-q-question{font-size:16px}.ppt-q-opt{font-size:10.5px;padding:4px 6px}}
+    </style><div class="ppt-preview-grid">${cards}</div><div class="modalActions" style="position:sticky;bottom:0;background:#fff;padding-top:14px"><button class="btn white" id="pptBack">← Chọn lại</button><button class="btn gold" id="pptMake">Tạo & tải PowerPoint</button></div></div>`);
     d.querySelector('#pptBack').onclick=()=>{d.remove();choose(async opt=>{await runPptFlow(data.original,opt)})};
     d.querySelector('#pptMake').onclick=async()=>{d.remove();await onConfirm()};
   }
