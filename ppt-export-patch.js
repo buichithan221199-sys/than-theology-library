@@ -7,6 +7,24 @@
   const clean=v=>String(v||'').replace(/\r/g,'').replace(/\n{3,}/g,'\n\n').trim();
   const fileName=v=>String(v||'PowerPoint').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().slice(0,90)||'PowerPoint';
   function box(text){try{return overlay(`<div class="modal" style="max-width:440px;text-align:center"><h2>${esc(text)}</h2><p class="muted">PowerPoint được tạo tạm trên thiết bị, không lưu vào app.</p></div>`)}catch{return null}}
+  function showPptReady(blob,name){
+    try{
+      if(window.__theologyPptUrl){try{URL.revokeObjectURL(window.__theologyPptUrl)}catch{}}
+      const url=URL.createObjectURL(blob);window.__theologyPptUrl=url;
+      const d=overlay(`<div class="modal" style="max-width:520px"><button class="x">×</button><h2>PowerPoint đã sẵn sàng</h2><p class="muted">File đã tạo xong. Chọn một cách bên dưới để lưu vào thiết bị.</p><div style="display:grid;gap:10px;margin-top:18px"><button class="btn gold" id="pptDownloadReady" style="min-height:54px">⬇️ Tải PowerPoint</button><button class="btn white" id="pptShareReady" style="min-height:54px">📤 Chia sẻ / Lưu vào Tệp</button></div><p class="muted" style="margin-top:14px">File chỉ tồn tại tạm trong trình duyệt và không được lưu vào app.</p></div>`);
+      const close=d.querySelector('.x');if(close)close.addEventListener('click',()=>{setTimeout(()=>{try{URL.revokeObjectURL(url)}catch{};if(window.__theologyPptUrl===url)window.__theologyPptUrl=''},3000)},{once:true});
+      d.querySelector('#pptDownloadReady').onclick=()=>{const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove()};
+      const share=d.querySelector('#pptShareReady');
+      const file=new File([blob],name,{type:'application/vnd.openxmlformats-officedocument.presentationml.presentation'});
+      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+        share.onclick=async()=>{try{await navigator.share({files:[file],title:name})}catch(e){if(e?.name!=='AbortError')alert('Không mở được bảng chia sẻ. Hãy dùng nút Tải PowerPoint.')}};
+      }else{
+        share.style.display='none';
+      }
+    }catch(e){
+      console.error(e);alert('PowerPoint đã tạo xong nhưng không mở được nút tải. Hãy thử lại.');
+    }
+  }
   function choose(run){const d=overlay(`<div class="modal" style="max-width:560px"><button class="x">×</button><h2>Xuất PowerPoint</h2><p class="muted">File .pptx sẽ có ảnh minh họa và tải về thiết bị. App không lưu file này nên không làm đầy bộ nhớ.</p><div class="field"><label>Ngôn ngữ</label><select id="pptLang"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></div><div class="field"><label>Nội dung</label><select id="pptKind"><option value="lesson">Bài học</option><option value="lesson_quiz">Bài học + trắc nghiệm</option><option value="quiz">Chỉ trắc nghiệm</option><option value="quiz_answers">Trắc nghiệm + đáp án</option></select></div><div class="modalActions"><button class="btn gold" id="pptGo">Tạo PowerPoint</button></div></div>`);d.querySelector('#pptGo').onclick=()=>{const opt={lang:d.querySelector('#pptLang').value,kind:d.querySelector('#pptKind').value};d.remove();run(opt)}}
   async function ensure(){if(window.PptxGenJS)return;await new Promise((res,rej)=>{const old=document.querySelector('script[data-pptxgen]');if(old){old.addEventListener('load',res,{once:true});old.addEventListener('error',()=>rej(new Error('Không tải được thư viện PowerPoint. Hãy kiểm tra mạng rồi thử lại.')),{once:true});return}const s=document.createElement('script');s.src=CDN;s.async=true;s.dataset.pptxgen='1';s.onload=res;s.onerror=()=>rej(new Error('Không tải được thư viện PowerPoint. Hãy kiểm tra mạng rồi thử lại.'));document.head.appendChild(s)});if(!window.PptxGenJS)throw new Error('Trình duyệt chưa sẵn sàng tạo PowerPoint.')}
   async function translate(payload,kind){const r=await fetch(TRANSLATE,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({target_language:'en',kind,payload})});const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.error||'Không dịch được nội dung PowerPoint.');return j.translated}
@@ -93,11 +111,13 @@
     title(end,opt.lang==='en'?'Thank you':'Cảm ơn',.8,2.25,8.5,1,40);
     body(end,opt.lang==='en'?'Theology Library · Faith Journey':'Thư Viện Thần Học · Hành trình đức tin',.85,3.32,7,.45,17,'D6AF54');
     await imagePanel(pptx,end,IMG.bible,8.0,0,5.33,7.5);
-    b?.remove();
-
     const suffix=opt.kind==='quiz'?(opt.lang==='en'?' - Quiz':' - Trac nghiem'):opt.kind==='quiz_answers'?(opt.lang==='en'?' - Quiz Answer Key':' - Trac nghiem dap an'):(opt.lang==='en'?' - English':'');
-    await pptx.writeFile({fileName:fileName((lesson.title||l.title||'Bai hoc')+suffix+'.pptx')});
+    const outName=fileName((lesson.title||l.title||'Bai hoc')+suffix+'.pptx');
+    if(b){const h=b.querySelector('h2');if(h)h.textContent='Đang hoàn tất file PowerPoint…'}
+    const blob=await pptx.write({outputType:'blob'});
+    b?.remove();
+    showPptReady(blob,outName);
   }
-  window.exportLessonPowerPoint=function(){const l=S?.selected;if(!l){alert('Chưa chọn bài học.');return}choose(async opt=>{const run=async()=>{try{await build(l,opt)}catch(e){document.querySelector('.overlay')?.remove();alert(e?.message||String(e))}};if(opt.kind==='quiz_answers'&&!S.pin){unlock(run);return}await run()})};
+  window.exportLessonPowerPoint=function(){const l=S?.selected;if(!l){alert('Chưa chọn bài học.');return}choose(async opt=>{const run=async()=>{try{await build(l,opt)}catch(e){const ovs=[...document.querySelectorAll('.overlay')];const last=ovs.at(-1);if(last&&/Đang (tạo|dịch|hoàn tất)/.test(last.textContent||''))last.remove();alert(e?.message||String(e))}};if(opt.kind==='quiz_answers'&&!S.pin){unlock(run);return}await run()})};
   const oldDetail=detail;detail=function(){let h=oldDetail();if(!S?.selected)return h;if(h.includes('exportLessonPowerPoint()'))return h;const btn=`<div class="ppt-action-toolbar" style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 20px"><button class="btn white ppt-action" onclick="exportLessonPowerPoint()">📊 Xuất PowerPoint</button></div>`;return h.includes('<article class="panel lesson')?h.replace('<article class="panel lesson',btn+'<article class="panel lesson'):btn+h};
 })();
