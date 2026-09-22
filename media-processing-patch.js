@@ -17,10 +17,11 @@ async function aiCompressImage(file){
 }
 
 const _fetchMedia=window.fetch.bind(window);
+const PROCESS_CORE_MEDIA=SB+'/functions/v1/theology-process';
 window.fetch=async function(input,init){
   try{
     const url=typeof input==='string'?input:(input?.url||'');
-    if(url===AI && init?.body instanceof FormData && init.body.get('mode')==='images'){
+    if((url===AI||url===PROCESS_CORE_MEDIA) && init?.body instanceof FormData && init.body.get('mode')==='images'){
       const old=init.body,fd=new FormData();
       for(const [k,v] of old.entries())if(k!=='files'&&k!=='file')fd.append(k,v);
       const originals=[...old.getAll('files'),...old.getAll('file')].filter(x=>x instanceof File);
