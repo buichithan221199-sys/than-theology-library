@@ -36,7 +36,7 @@ function uploadRoutingModal(mode){
     try{
       const b=d.querySelector('#process');b.disabled=true;b.textContent='Đang xử lý…';
       const fd=new FormData();fd.append('mode',mode);fd.append('content_kind',k);fd.append('target_type',k==='questions'?'questions':k==='scripture'?'scripture':'lesson');fd.append('target_lesson_id',lessonId==='__new__'?'':lessonId);fd.append('target_lesson_title',S.lessons.find(x=>x.id===lessonId)?.title||'');fd.append('folder_slug',folder);fd.append('text',text);files.forEach(f=>fd.append(multi?'files':'file',f));
-      const r=await fetch(AI,{method:'POST',headers:{'x-admin-pin':S.pin},body:fd});const j=await r.json();if(!r.ok)throw Error(j.error||'Không xử lý được');d.remove();
+      const r=await fetch(AI,{method:'POST',headers:{'x-admin-pin':S.pin},body:fd});const raw=await r.text();let j={};try{j=raw?JSON.parse(raw):{}}catch{}if(!r.ok){const detail=j?.error||j?.message||('HTTP '+r.status+(raw?': '+raw.slice(0,500):''));throw Error(detail||'Không xử lý được')}if(!j||(!j.lesson&&!Object.keys(j).length))throw Error('Máy chủ không trả về nội dung hợp lệ.');d.remove();
       if(k==='questions')return previewResult(j.lesson||j,{targetType:'questions',lessonId,folder,files,mode});
       if(k==='scripture')return previewScriptureSource(j.lesson||j,{lessonId,files,mode,text});
       return previewResult(j.lesson||j,{targetType:'lesson',lessonId:lessonId==='__new__'?'':lessonId,folder,files,mode});
