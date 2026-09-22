@@ -1,4 +1,18 @@
 // Upload routing: every upload is classified and attached to a lesson; Scripture lesson composer is separate.
+const PROCESS_CORE=SB+'/functions/v1/theology-process';
+const STANDARD_BASE=SB+'/functions/v1/theology-standardize-base';
+
+async function standardizeBaseLesson(baseLesson,sourceMode){
+  if(!baseLesson||typeof baseLesson!=='object')return baseLesson;
+  try{
+    const r=await fetch(STANDARD_BASE,{method:'POST',headers:{'Content-Type':'application/json','x-admin-pin':S.pin},body:JSON.stringify({base_lesson:baseLesson,source_mode:sourceMode||baseLesson.source_kind||'text'})});
+    const raw=await r.text();let j={};try{j=raw?JSON.parse(raw):{}}catch{}
+    if(r.ok&&j?.lesson)return j.lesson;
+    console.warn('Bỏ qua bước chuẩn hóa bài học:',j?.error||raw||('HTTP '+r.status));
+  }catch(e){console.warn('Bỏ qua bước chuẩn hóa bài học:',e)}
+  return baseLesson;
+}
+
 function openImport(){
   if(!S.pin){unlock();return}
   const d=overlay(`<div class="modal"><button class="x">×</button><h2>Thêm nội dung</h2><p class="muted">Tải tài liệu vào bài học đã chọn, hoặc mở riêng phần soạn bài học từ Kinh Thánh.</p><div class="methods"><button data-m="images">🖼️<br>Hình ảnh</button><button data-m="pdf">📄<br>PDF</button><button data-m="audio">🎙️<br>Ghi âm</button><button data-m="text">✍️<br>Văn bản</button></div><button class="btn gold" id="scriptureComposer" style="width:100%;margin-top:10px">📖 Soạn bài học từ Kinh Thánh</button></div>`);
@@ -36,7 +50,12 @@ function uploadRoutingModal(mode){
     try{
       const b=d.querySelector('#process');b.disabled=true;b.textContent='Đang xử lý…';
       const fd=new FormData();fd.append('mode',mode);fd.append('content_kind',k);fd.append('target_type',k==='questions'?'questions':k==='scripture'?'scripture':'lesson');fd.append('target_lesson_id',lessonId==='__new__'?'':lessonId);fd.append('target_lesson_title',S.lessons.find(x=>x.id===lessonId)?.title||'');fd.append('folder_slug',folder);fd.append('text',text);files.forEach(f=>fd.append(multi?'files':'file',f));
-      const r=await fetch(AI,{method:'POST',headers:{'x-admin-pin':S.pin},body:fd});const raw=await r.text();let j={};try{j=raw?JSON.parse(raw):{}}catch{}if(!r.ok){const detail=j?.error||j?.message||('HTTP '+r.status+(raw?': '+raw.slice(0,500):''));throw Error(detail||'Không xử lý được')}if(!j||(!j.lesson&&!Object.keys(j).length))throw Error('Máy chủ không trả về nội dung hợp lệ.');d.remove();
+      // Audio keeps its dedicated interception path. All other uploads go straight to the core processor,
+      // so large PDF/image payloads are not buffered and re-forwarded by theology-process-standard.
+      const endpoint=mode==='audio'?AI:PROCESS_CORE;
+      const r=await fetch(endpoint,{method:'POST',headers:{'x-admin-pin':S.pin},body:fd});const raw=await r.text();let j={};try{j=raw?JSON.parse(raw):{}}catch{}if(!r.ok){const detail=j?.error||j?.message||('HTTP '+r.status+(raw?': '+raw.slice(0,500):''));throw Error(detail||'Không xử lý được')}if(!j||(!j.lesson&&!Object.keys(j).length))throw Error('Máy chủ không trả về nội dung hợp lệ.');
+      if(k==='lesson'&&mode!=='audio'&&j?.lesson){b.textContent='Đang chuẩn hóa…';j.lesson=await standardizeBaseLesson(j.lesson,mode)}
+      d.remove();
       if(k==='questions')return previewResult(j.lesson||j,{targetType:'questions',lessonId,folder,files,mode});
       if(k==='scripture')return previewScriptureSource(j.lesson||j,{lessonId,files,mode,text});
       return previewResult(j.lesson||j,{targetType:'lesson',lessonId:lessonId==='__new__'?'':lessonId,folder,files,mode});
