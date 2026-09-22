@@ -1,4 +1,4 @@
-const CACHE='theology-library-v2';
+const CACHE='theology-library-v3';
 const CORE=['./','./manifest.webmanifest','./app-icon.svg'];
 
 self.addEventListener('install',event=>{
