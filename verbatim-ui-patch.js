@@ -21,6 +21,14 @@
     return j;
   }
 
+  function exportVerbatimPdf(lesson,transcript){
+    try{
+      const title=String(lesson?.title||'Bài học');
+      const body=`<h1>Nguyên văn MP3</h1><div class="meta">${pdfEsc(title)}</div><div style="margin:0 0 18px;padding:10px 12px;border-left:4px solid #d7ad4f;background:#fff9e9;color:#5f6875;font-size:10.5pt"><b>Nguyên văn phiên âm</b><br>Nội dung bên dưới được lấy từ bản nhận dạng giọng nói của MP3 và không được tóm tắt hay viết lại.</div><div style="white-space:pre-wrap;line-height:1.7;font-family:Georgia,'Times New Roman',serif;font-size:11.5pt">${pdfEsc(transcript)}</div><div class="footer-note">Thư Viện Thần Học · Nguyên văn MP3</div>`;
+      openPrintablePdf(title+' - Nguyên văn MP3',body);
+    }catch(e){console.error(e);alert('Không thể xuất PDF nguyên văn MP3.');}
+  }
+
   // Remember the transcript only in memory while the preview is open.
   // It is stored privately only after the lesson itself saves successfully.
   const previewBeforeVerbatim=previewResult;
@@ -76,8 +84,9 @@
         return;
       }
       const transcript=String(j.transcript||'');
-      const d=overlay(`<div class="modal" style="width:min(1040px,97vw)"><button class="x">×</button><h2>Nguyên văn MP3</h2><p class="muted"><b>${esc(lesson?.title||'')}</b></p><div class="verbatim-meta"><b>Nguyên văn phiên âm:</b> nội dung dưới đây không được tóm tắt, viết lại hay sắp xếp lại. Vì đây là nhận dạng giọng nói tự động, một số từ riêng/tên riêng vẫn có thể được nghe sai so với âm thanh gốc.</div><div class="verbatim-paper" id="verbatimText">${esc(transcript)}</div><div class="modalActions"><button class="btn white" id="verbCopy">Sao chép toàn bộ</button><button class="btn gold" id="verbClose">Đóng</button></div></div>`);
+      const d=overlay(`<div class="modal" style="width:min(1040px,97vw)"><button class="x">×</button><h2>Nguyên văn MP3</h2><p class="muted"><b>${esc(lesson?.title||'')}</b></p><div class="verbatim-meta"><b>Nguyên văn phiên âm:</b> nội dung dưới đây không được tóm tắt, viết lại hay sắp xếp lại. Vì đây là nhận dạng giọng nói tự động, một số từ riêng/tên riêng vẫn có thể được nghe sai so với âm thanh gốc.</div><div class="verbatim-paper" id="verbatimText">${esc(transcript)}</div><div class="modalActions"><button class="btn white" id="verbCopy">Sao chép toàn bộ</button><button class="btn white" id="verbPdf">📄 Xuất PDF</button><button class="btn gold" id="verbClose">Đóng</button></div></div>`);
       d.querySelector('#verbClose').onclick=()=>d.remove();
+      d.querySelector('#verbPdf').onclick=()=>exportVerbatimPdf(lesson,transcript);
       d.querySelector('#verbCopy').onclick=async()=>{const b=d.querySelector('#verbCopy');try{await navigator.clipboard.writeText(transcript);b.textContent='Đã sao chép';setTimeout(()=>{if(document.body.contains(d))b.textContent='Sao chép toàn bộ'},1400)}catch{alert('Không sao chép được trên trình duyệt này.')}};
     }catch(e){loading?.remove();alert(e?.message||String(e));}
   };
