@@ -10,7 +10,7 @@
         const opt=document.createElement('option');opt.value='answer_key';opt.textContent='Đáp án trắc nghiệm';kind.appendChild(opt);
       }
       kind.addEventListener('change',()=>{
-        if(kind.value==='answer_key'&&hint)hint.textContent='Chọn bài học/bộ câu hỏi mà file đáp án này thuộc về. App sẽ đối chiếu theo nội dung câu hỏi và A/B/C/D, không dựa vào số thứ tự.';
+        if(kind.value==='answer_key'&&hint)hint.textContent='Chọn bài học/bộ câu hỏi mà file đáp án này thuộc về. App sẽ đối chiếu theo nội dung câu hỏi và tất cả lựa chọn thực sự có trong nguồn, không dựa vào số thứ tự.';
       });
     }
   };
@@ -48,20 +48,43 @@
     return r;
   };
 
-  function quizOptions(o){return ['A','B','C','D'].map(k=>`<div class="opt"><b>${k}.</b> ${esc(o?.[k]||'')}</div>`).join('')}
+  function optionLabel(index){
+    let n=Number(index)+1,s='';
+    while(n>0){n--;s=String.fromCharCode(65+(n%26))+s;n=Math.floor(n/26)}
+    return s;
+  }
+  function optionRank(k){
+    const s=String(k||'').toUpperCase();let n=0;
+    for(const ch of s){if(ch<'A'||ch>'Z')return Number.MAX_SAFE_INTEGER;n=n*26+(ch.charCodeAt(0)-64)}
+    return n;
+  }
+  function normalizeQuestionOptions(o){
+    if(Array.isArray(o)){
+      const out={};o.forEach((v,i)=>{const text=String(v??'').trim();if(text)out[optionLabel(i)]=text});return out;
+    }
+    if(o&&typeof o==='object'){
+      const out={};for(const [rawKey,v] of Object.entries(o)){const key=String(rawKey||'').trim().toUpperCase(),text=String(v??'').trim();if(/^[A-Z]+$/.test(key)&&text)out[key]=text}return out;
+    }
+    return {};
+  }
+  function optionKeys(o){return Object.keys(normalizeQuestionOptions(o)).sort((a,b)=>optionRank(a)-optionRank(b)||a.localeCompare(b))}
+  function quizOptions(o){const n=normalizeQuestionOptions(o);return optionKeys(n).map(k=>`<div class="opt"><b>${esc(k)}.</b> ${esc(n[k])}</div>`).join('')}
   function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim()}
   function sim(a,b){
     a=norm(a);b=norm(b);if(!a||!b)return 0;if(a===b)return 1;
     const A=new Set(a.split(' ')),B=new Set(b.split(' '));let common=0;for(const x of A)if(B.has(x))common++;
     return common/Math.max(A.size,B.size,1);
   }
-  function optionsScore(a,b){let hit=0,total=0;for(const k of ['A','B','C','D']){const x=a?.[k],y=b?.[k];if(x||y){total++;if(sim(x,y)>=0.72)hit++}}return total?hit/total:0}
+  function optionsScore(a,b){
+    const na=normalizeQuestionOptions(a),nb=normalizeQuestionOptions(b),keys=[...new Set([...optionKeys(na),...optionKeys(nb)])];
+    let hit=0,total=0;for(const k of keys){const x=na[k],y=nb[k];if(x||y){total++;if(x&&y&&sim(x,y)>=0.72)hit++}}return total?hit/total:0;
+  }
 
   mediaQuestionsPreview=function(v,ctx){
     const qs=Array.isArray(v?.questions)?v.questions:[],lesson=S.lessons.find(x=>x.id===ctx.lessonId),transcript=v?.source_transcript||'';
     const saveSource=ctx.mode!=='images'&&ctx.mode!=='audio';
-    const d=overlay(`<div class="modal" style="width:min(980px,96vw)"><button class="x">×</button><h2>Xem trước đề trắc nghiệm</h2><p class="muted">Đã nhận diện <b>${qs.length}</b> câu cho <b>${esc(lesson?.title||'')}</b>. Câu hỏi và A/B/C/D được giữ theo file nguồn.${saveSource?' File PDF sẽ được lưu để đối chiếu.':' Ảnh/audio chỉ dùng tạm và không được lưu.'}</p>${qs.map((q,i)=>`<div class="question"><b>Câu ${esc(q.sort_order||i+1)}. ${esc(q.question_text||'')}</b><div class="opts">${quizOptions(q.options||{})}</div>${q.correct_option?`<div class="muted">Đáp án có trong nguồn: ${esc(q.correct_option)}${q.explanation?' · '+esc(q.explanation):''}</div>`:'<div class="muted">Chưa có đáp án — có thể tải file “Đáp án trắc nghiệm” sau.</div>'}</div>`).join('')||'<div class="error">Không nhận diện được câu hỏi nào.</div>'}<div class="modalActions"><button class="btn gold" id="save" ${qs.length?'':'disabled'}>Lưu đủ ${qs.length} câu</button></div></div>`);
-    d.querySelector('#save')?.addEventListener('click',async()=>{const b=d.querySelector('#save');b.disabled=true;b.textContent='Đang lưu…';try{for(let i=0;i<qs.length;i++){const z=qs[i],o=Array.isArray(z.options)?Object.fromEntries(['A','B','C','D'].map((k,j)=>[k,z.options[j]||''])):(z.options||{});const payload={question:{lesson_id:ctx.lessonId,question_text:z.question_text||'',options:o,sort_order:Number(z.sort_order||i+1),scripture_reference:z.scripture_reference||''}};if(z.correct_option)payload.answer={correct_option:z.correct_option,explanation:z.explanation||'',scripture_reference:z.scripture_reference||''};await adm('save_question',payload)}if(saveSource){await saveOriginalAttachments(ctx.lessonId,ctx.files,'question_source');await saveTranscriptAttachment(ctx.lessonId,transcript,'nguon-de-trac-nghiem','question_source')}d.remove();await load();go('quiz')}catch(e){b.disabled=false;b.textContent=`Lưu đủ ${qs.length} câu`;alert(e?.message||String(e))}});
+    const d=overlay(`<div class="modal" style="width:min(980px,96vw)"><button class="x">×</button><h2>Xem trước đề trắc nghiệm</h2><p class="muted">Đã nhận diện <b>${qs.length}</b> câu cho <b>${esc(lesson?.title||'')}</b>. Chỉ những lựa chọn thực sự có nội dung trong file nguồn mới được hiển thị và lưu; không ép A/B/C/D.${saveSource?' File PDF sẽ được lưu để đối chiếu.':' Ảnh/audio chỉ dùng tạm và không được lưu.'}</p>${qs.map((q,i)=>`<div class="question"><b>Câu ${esc(q.sort_order||i+1)}. ${esc(q.question_text||'')}</b><div class="opts">${quizOptions(q.options||{})}</div>${q.correct_option?`<div class="muted">Đáp án có trong nguồn: ${esc(q.correct_option)}${q.explanation?' · '+esc(q.explanation):''}</div>`:'<div class="muted">Chưa có đáp án — có thể tải file “Đáp án trắc nghiệm” sau.</div>'}</div>`).join('')||'<div class="error">Không nhận diện được câu hỏi nào.</div>'}<div class="modalActions"><button class="btn gold" id="save" ${qs.length?'':'disabled'}>Lưu đủ ${qs.length} câu</button></div></div>`);
+    d.querySelector('#save')?.addEventListener('click',async()=>{const b=d.querySelector('#save');b.disabled=true;b.textContent='Đang lưu…';try{for(let i=0;i<qs.length;i++){const z=qs[i],o=normalizeQuestionOptions(z.options);const payload={question:{lesson_id:ctx.lessonId,question_text:z.question_text||'',options:o,sort_order:Number(z.sort_order||i+1),scripture_reference:z.scripture_reference||''}};if(z.correct_option)payload.answer={correct_option:z.correct_option,explanation:z.explanation||'',scripture_reference:z.scripture_reference||''};await adm('save_question',payload)}if(saveSource){await saveOriginalAttachments(ctx.lessonId,ctx.files,'question_source');await saveTranscriptAttachment(ctx.lessonId,transcript,'nguon-de-trac-nghiem','question_source')}d.remove();await load();go('quiz')}catch(e){b.disabled=false;b.textContent=`Lưu đủ ${qs.length} câu`;alert(e?.message||String(e))}});
   };
 
   function mediaAnswerKeyPreview(v,ctx){
@@ -74,7 +97,7 @@
       else if(a.correct_option)uncertain.push(a);
     }
     const saveSource=ctx.mode!=='images'&&ctx.mode!=='audio';
-    const d=overlay(`<div class="modal" style="width:min(980px,96vw)"><button class="x">×</button><h2>Xem trước đáp án trắc nghiệm</h2><p class="muted">Bài: <b>${esc(lesson?.title||'')}</b> · Đã ghép chắc chắn <b>${matched.length}</b> đáp án theo nội dung câu hỏi${uncertain.length?` · <b>${uncertain.length}</b> mục cần kiểm tra`:''}. Số thứ tự không được dùng để quyết định ghép. ${saveSource?'PDF sẽ được lưu làm nguồn.':'Ảnh chỉ dùng tạm và sẽ không được lưu.'}</p>${matched.map(({a,q,score})=>`<div class="question"><b>${esc(q.question_text||'')}</b><div style="margin-top:8px"><b>Đáp án: ${esc(a.correct_option)}</b>${a.explanation?`<div class="muted" style="margin-top:5px">${esc(a.explanation)}</div>`:''}<div class="muted" style="margin-top:4px">Độ khớp nội dung: ${Math.round(score*100)}%</div></div></div>`).join('')||'<div class="error">Chưa ghép chắc chắn được đáp án nào. Hãy kiểm tra file đáp án và đúng bài học đã chọn.</div>'}<div class="modalActions"><button class="btn gold" id="save" ${matched.length?'':'disabled'}>Cập nhật ${matched.length} đáp án</button></div></div>`);
+    const d=overlay(`<div class="modal" style="width:min(980px,96vw)"><button class="x">×</button><h2>Xem trước đáp án trắc nghiệm</h2><p class="muted">Bài: <b>${esc(lesson?.title||'')}</b> · Đã ghép chắc chắn <b>${matched.length}</b> đáp án theo nội dung câu hỏi và các lựa chọn thực sự có trong nguồn${uncertain.length?` · <b>${uncertain.length}</b> mục cần kiểm tra`:''}. Số thứ tự không được dùng để quyết định ghép. ${saveSource?'PDF sẽ được lưu làm nguồn.':'Ảnh chỉ dùng tạm và sẽ không được lưu.'}</p>${matched.map(({a,q,score})=>`<div class="question"><b>${esc(q.question_text||'')}</b><div style="margin-top:8px"><b>Đáp án: ${esc(a.correct_option)}</b>${a.explanation?`<div class="muted" style="margin-top:5px">${esc(a.explanation)}</div>`:''}<div class="muted" style="margin-top:4px">Độ khớp nội dung: ${Math.round(score*100)}%</div></div></div>`).join('')||'<div class="error">Chưa ghép chắc chắn được đáp án nào. Hãy kiểm tra file đáp án và đúng bài học đã chọn.</div>'}<div class="modalActions"><button class="btn gold" id="save" ${matched.length?'':'disabled'}>Cập nhật ${matched.length} đáp án</button></div></div>`);
     d.querySelector('#save')?.addEventListener('click',async()=>{const b=d.querySelector('#save');b.disabled=true;b.textContent='Đang cập nhật…';try{for(const {a,q} of matched)await adm('save_answer',{question_id:q.id,answer:{correct_option:a.correct_option,explanation:a.explanation||'',scripture_reference:a.scripture_reference||q.scripture_reference||''}});if(saveSource){await saveOriginalAttachments(ctx.lessonId,ctx.files,'answer_key_source');await saveTranscriptAttachment(ctx.lessonId,v?.source_transcript||'','nguon-dap-an-trac-nghiem','answer_key_source')}d.remove();await load();alert(`Đã cập nhật ${matched.length} đáp án.`);go('quiz')}catch(e){b.disabled=false;b.textContent=`Cập nhật ${matched.length} đáp án`;alert(e?.message||String(e))}});
   }
 
