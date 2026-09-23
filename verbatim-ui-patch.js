@@ -3,6 +3,16 @@
   const VERBATIM=SB+'/functions/v1/theology-verbatim';
   const pendingByContent=new WeakMap();
 
+  function readableError(v,fallback='Không xử lý được bản nguyên văn MP3.'){
+    if(v==null)return fallback;
+    if(typeof v==='string'&&v.trim())return v;
+    if(v instanceof Error&&String(v.message||'').trim())return String(v.message);
+    if(typeof v?.message==='string'&&v.message.trim())return v.message;
+    if(typeof v?.details==='string'&&v.details.trim())return v.details;
+    if(typeof v?.error==='string'&&v.error.trim())return v.error;
+    try{const s=JSON.stringify(v);return s&&s!=='{}'?s:fallback}catch{return fallback}
+  }
+
   const style=document.createElement('style');
   style.id='verbatim-transcript-style';
   style.textContent=`
@@ -17,7 +27,7 @@
   async function verbatimApi(action,payload={}){
     const r=await fetch(VERBATIM,{method:'POST',headers:{'Content-Type':'application/json','x-admin-pin':S.pin||''},body:JSON.stringify({action,...payload})});
     const j=await r.json().catch(()=>({}));
-    if(!r.ok)throw new Error(j?.error||'Không xử lý được bản nguyên văn MP3.');
+    if(!r.ok)throw new Error(readableError(j?.error||j));
     return j;
   }
 
@@ -88,7 +98,7 @@
       d.querySelector('#verbClose').onclick=()=>d.remove();
       d.querySelector('#verbPdf').onclick=()=>exportVerbatimPdf(lesson,transcript);
       d.querySelector('#verbCopy').onclick=async()=>{const b=d.querySelector('#verbCopy');try{await navigator.clipboard.writeText(transcript);b.textContent='Đã sao chép';setTimeout(()=>{if(document.body.contains(d))b.textContent='Sao chép toàn bộ'},1400)}catch{alert('Không sao chép được trên trình duyệt này.')}};
-    }catch(e){loading?.remove();alert(e?.message||String(e));}
+    }catch(e){loading?.remove();alert(readableError(e));}
   };
 
   const detailBeforeVerbatim=detail;
