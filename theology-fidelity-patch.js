@@ -20,6 +20,7 @@
   function hasMeaning(node){
     return !!(String(node?.title||'').trim()||String(node?.explanation||'').trim()||(node?.subpoints||[]).length||(node?.items||[]).length||(node?.subitems||[]).length);
   }
+  const ROMAN_HEADING=/^(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV|XVI|XVII|XVIII|XIX|XX)\.\s+(.+)$/i;
 
   // When a PDF/text already contains I./A./1./a. headings, trust those explicit headings.
   // Only formatting markers are lifted into the hierarchy; body wording stays untouched.
@@ -42,11 +43,12 @@
         if(target && String(target.explanation||'') && !String(target.explanation).endsWith('\n')) target.explanation+='\n';
         continue;
       }
-      let m=t.match(/^([IVXLCDM]+)\.\s+(.+)$/i);
+      if(/^GHI CHÚ$/i.test(t))continue;
+      let m=t.match(ROMAN_HEADING);
       if(m){
         const z=parseTimeTitle(m[2]);makeSection(z.title,m[1].toUpperCase(),z.time_label);romanCount++;continue;
       }
-      if(/^(GHI CHÚ|Câu Hỏi Ôn Bài|Câu Hỏi Áp Dụng|Bảng Chú Giải Thuật Ngữ)$/i.test(t)){
+      if(/^(Câu Hỏi Ôn Bài|Câu Hỏi Áp Dụng|Bảng Chú Giải Thuật Ngữ)$/i.test(t)){
         makeSection(t,'','',true);secondaryCount++;continue;
       }
       m=t.match(/^([A-Z])\.\s+(.+)$/);
