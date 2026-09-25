@@ -34,7 +34,7 @@ function uploadRoutingModal(mode){
     ${mode==='text'?`<div class="field"><label>Nội dung</label><textarea id="text" rows="12"></textarea></div>`:`<div class="drop" id="drop"><b>${multi?'Chọn nhiều ảnh (tối đa 40)':'Chọn file'}</b><span class="muted">${multi?'Có thể chọn nhiều ảnh một lần hoặc chọn thêm nhiều lần.':'Nhấn để chọn file.'}</span><input id="file" type="file" ${multi?'multiple accept="image/*"':mode==='pdf'?'accept="application/pdf"':'accept="audio/*"'} hidden></div>${multi?`<button class="btn white" id="more" style="width:100%;margin-top:10px">+ Chọn thêm ảnh</button><div class="muted" id="count">0/40 ảnh</div><div class="preview" id="preview"></div>`:`<div class="muted" id="count">Chưa chọn file</div>`}`}
     <div id="err"></div><div class="modalActions"><button class="btn gold" id="process">Xử lý & xem trước</button></div>`);
   const kind=d.querySelector('#contentKind'),target=d.querySelector('#lessonTarget'),folderBox=d.querySelector('#newFolder'),hint=d.querySelector('#targetHint');
-  const sync=()=>{const k=kind.value;const allowNew=k==='lesson';const cur=target.value;target.innerHTML=lessonTargetOptions(allowNew);if(allowNew&&cur==='__new__')target.value='__new__';else if(cur&&cur!=='__new__'&&S.lessons.some(x=>x.id===cur))target.value=cur;folderBox.classList.toggle('hidden',target.value!=='__new__');hint.textContent=k==='questions'?'Chọn bài học mà bộ câu hỏi này thuộc về.':k==='scripture'?'Chọn bài học mà phần Kinh Thánh này thuộc về. Phần này chỉ lưu/ghép nguồn, không phải chức năng soạn bài học từ Kinh Thánh.':'Chọn bài học đã có, hoặc “Tạo bài học mới”.'};
+  const sync=()=>{const k=kind.value;const allowNew=k==='lesson';const cur=target.value;target.innerHTML=lessonTargetOptions(allowNew);if(allowNew&&cur==='__new__')target.value='__new__';else if(cur&&cur!=='__new__'&&S.lessons.some(x=>x.id===cur))target.value=cur;folderBox.classList.toggle('hidden',target.value!=='__new__');hint.textContent=k==='questions'?'Chọn bài học mà bộ câu hỏi này thuộc về.':k==='answer_key'?'Chọn bài học mà file đáp án này thuộc về. App chỉ cập nhật đáp án, không thay đổi nội dung bài học.':k==='scripture'?'Chọn bài học mà phần Kinh Thánh này thuộc về. Phần này chỉ lưu/ghép nguồn, không phải chức năng soạn bài học từ Kinh Thánh.':'Chọn bài học đã có, hoặc “Tạo bài học mới”.'};
   kind.onchange=sync;target.onchange=()=>folderBox.classList.toggle('hidden',target.value!=='__new__');sync();
   if(mode!=='text'){
     const input=d.querySelector('#file'),drop=d.querySelector('#drop');
@@ -49,7 +49,7 @@ function uploadRoutingModal(mode){
     if(mode!=='text'&&!files.length){d.querySelector('#err').innerHTML='<div class="error">Chưa chọn file.</div>';return}
     try{
       const b=d.querySelector('#process');b.disabled=true;b.textContent='Đang xử lý…';
-      const fd=new FormData();fd.append('mode',mode);fd.append('content_kind',k);fd.append('target_type',k==='questions'?'questions':k==='scripture'?'scripture':'lesson');fd.append('target_lesson_id',lessonId==='__new__'?'':lessonId);fd.append('target_lesson_title',S.lessons.find(x=>x.id===lessonId)?.title||'');fd.append('folder_slug',folder);fd.append('text',text);files.forEach(f=>fd.append(multi?'files':'file',f));
+      const fd=new FormData();fd.append('mode',mode);fd.append('content_kind',k);fd.append('target_type',k==='questions'?'questions':k==='answer_key'?'answer_key':k==='scripture'?'scripture':'lesson');fd.append('target_lesson_id',lessonId==='__new__'?'':lessonId);fd.append('target_lesson_title',S.lessons.find(x=>x.id===lessonId)?.title||'');fd.append('folder_slug',folder);fd.append('text',text);files.forEach(f=>fd.append(multi?'files':'file',f));
       // Audio keeps its dedicated interception path. All other uploads go straight to the core processor,
       // so large PDF/image payloads are not buffered and re-forwarded by theology-process-standard.
       const endpoint=mode==='audio'?AI:PROCESS_CORE;
@@ -57,6 +57,11 @@ function uploadRoutingModal(mode){
       if(k==='lesson'&&mode!=='audio'&&j?.lesson){b.textContent='Đang chuẩn hóa…';j.lesson=await standardizeBaseLesson(j.lesson,mode)}
       d.remove();
       if(k==='questions')return previewResult(j.lesson||j,{targetType:'questions',lessonId,folder,files,mode});
+      if(k==='answer_key'){
+        const v=j.lesson||j;
+        if(v&&typeof v==='object'){v.__content_kind='answer_key';v.__target_lesson_id=lessonId;}
+        return previewResult(v,{targetType:'answer_key',lessonId,folder,files,mode});
+      }
       if(k==='scripture')return previewScriptureSource(j.lesson||j,{lessonId,files,mode,text});
       return previewResult(j.lesson||j,{targetType:'lesson',lessonId:lessonId==='__new__'?'':lessonId,folder,files,mode});
     }catch(e){d.querySelector('#err').innerHTML='<div class="error">'+esc(e.message)+'</div>';d.querySelector('#process').disabled=false;d.querySelector('#process').textContent='Xử lý & xem trước'}
