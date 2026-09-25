@@ -32,7 +32,8 @@
   const prevFetch=window.fetch.bind(window);
   window.fetch=async function(input,init){
     const url=typeof input==='string'?input:(input?.url||'');
-    const isAi=url===AI && init?.body instanceof FormData;
+    const core=(typeof PROCESS_CORE!=='undefined'?PROCESS_CORE:'');
+    const isAi=(url===AI||url===core) && init?.body instanceof FormData;
     let answerKey=false,lessonId='';
     if(isAi){
       const fd=init.body,kind=String(fd.get('content_kind')||'');lessonId=String(fd.get('target_lesson_id')||'');answerKey=kind==='answer_key';
@@ -103,7 +104,7 @@
 
   const prevPreview=previewResult;
   previewResult=function(v,ctx){
-    if(v?.__content_kind==='answer_key')return mediaAnswerKeyPreview(v,{...ctx,lessonId:v.__target_lesson_id||ctx.lessonId});
+    if(v?.__content_kind==='answer_key'||ctx?.targetType==='answer_key')return mediaAnswerKeyPreview(v,{...ctx,lessonId:v?.__target_lesson_id||ctx.lessonId});
     return prevPreview(v,ctx);
   };
 })();
