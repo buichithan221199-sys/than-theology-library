@@ -1,4 +1,4 @@
-const CACHE='than-theology-v2';
+const CACHE='than-theology-v4-edit-admin';
 const OLD_AI='https://than-theology-ai-buichithan221199-9344.vercel.app/api/process';
 const NEW_AI='https://cikobcunfmnvlyutlyai.supabase.co/functions/v1/theology-process';
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/','/index.html','/manifest.webmanifest'])));self.skipWaiting()});
@@ -14,5 +14,6 @@ self.addEventListener('fetch',e=>{
     return;
   }
   if(e.request.method!=='GET')return;
+  if(e.request.mode==='navigate'||new URL(e.request.url).pathname.endsWith('/index.html')){e.respondWith(fetch(e.request,{cache:'no-store'}).catch(()=>caches.match(e.request)));return;}
   e.respondWith(fetch(e.request).catch(()=>caches.match(e.request).then(r=>r||caches.match('/index.html'))));
 });
