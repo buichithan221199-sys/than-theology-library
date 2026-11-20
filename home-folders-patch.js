@@ -37,9 +37,9 @@
     if(!f)return '<div class="panel empty">Không tìm thấy thư mục.</div>';
     if(f.slug===nineBooksSlug){
       const children=childSlugs.map(sl=>S.folders.find(x=>x.slug===sl)).filter(Boolean);
-      return `<div class="folder-view-head"><div class="folder-view-title"><h2>📚 ${esc(f.name)}</h2><p>Chọn tài liệu dành cho Giáo viên hoặc Học viên</p></div><button class="btn white" onclick="closeHomeFolder()">← Trở về Trang chủ</button></div><div class="folder-grid">${children.map(c=>`<article class="folder-tile" onclick="openHomeFolder('${c.id}')"><div class="folder-icon">${c.slug.endsWith('teacher')?'👩‍🏫':'📖'}</div><h4>${esc(c.name)}</h4><p>${esc(c.description||'')}</p><span class="folder-count">${countFor(c)} nội dung</span></article>`).join('')}</div>`;
+      return `<div class="folder-view-head"><div class="folder-view-title"><h2>📚 ${esc(f.name)}</h2><p>Tài liệu Học viên được mở cho mọi người sau khi xuất bản; Admin có thể quản lý cả hai mục</p></div><button class="btn white" onclick="closeHomeFolder()">← Trở về Trang chủ</button></div><div class="folder-grid">${children.map(c=>`<article class="folder-tile" onclick="openHomeFolder('${c.id}')"><div class="folder-icon">${c.slug.endsWith('teacher')?'👩‍🏫':'📖'}</div><h4>${esc(c.name)}</h4><p>${esc(c.description||'')}</p><span class="folder-count">${countFor(c)} nội dung</span></article>`).join('')}</div>`;
     }
-    const items=S.lessons.filter(l=>l.folder_id===f.id);
+    const items=S.lessons.filter(l=>l.folder_id===f.id&&(!!S.pin||l.is_published===true));
     const parent=S.folders.find(x=>x.slug===nineBooksSlug);
     const backAction=childSlugs.includes(f.slug)&&parent?'openHomeFolder(\\''+parent.id+'\\')':'closeHomeFolder()';
     const cards=items.length?`<div class="folder-content-grid">${items.map((l,i)=>`<article class="card folder-content-card" onclick="openFolderContent('${l.id}')"><div class="folder-content-cover" style="background-image:url('${lessonVisual(l,i)}')"></div><div class="folder-content-body"><div class="folder-type">${l.source_kind==='faith_story'?'Câu chuyện đức tin':l.source_kind==='short_prayer'?'Lời cầu nguyện':f.name}</div><small>${esc(l.scripture_reference||'')}</small><h3>${esc(l.title)}</h3><p>${esc(l.summary||l.prayer||'')}</p></div></article>`).join('')}</div>`:'<div class="panel empty">Thư mục này chưa có nội dung.</div>';
