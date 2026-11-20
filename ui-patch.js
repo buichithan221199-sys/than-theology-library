@@ -137,7 +137,7 @@ const pts=Array.isArray(v.main_content)?v.main_content:[];const rqs=Array.isArra
   bar.append(label,close);
   const frame=document.createElement('iframe');
   frame.title='Nội Quy Hội Thánh';
-  frame.src='./noi-quy.html';
+  frame.src='./noi-quy.html?v=20261120-layout4';
   frame.style.cssText='border:0;width:100%;flex:1;min-height:0';
   panel.append(bar,frame);modal.append(panel);
   modal.addEventListener('click',e=>{if(e.target===modal)modal.remove()});
