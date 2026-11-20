@@ -46,3 +46,74 @@ const pts=Array.isArray(v.main_content)?v.main_content:[];const rqs=Array.isArra
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
   }
 })();
+
+/* Friendly editor for nested lesson JSON. Keep original textareas as canonical
+   save fields, and sync a structured form before the existing save handler. */
+(function(){
+ const names={main_content:'Nội dung bài học',recap_points:'Các điểm tóm tắt',reflection_questions:'Câu hỏi suy ngẫm'};
+ function mount(){
+  const modal=[...document.querySelectorAll('.modal')].find(x=>x.querySelector('#saveEdit')&&x.querySelector('[data-field="main_content"]'));
+  if(!modal||modal.dataset.structuredEditorReady)return;
+  modal.dataset.structuredEditorReady='1';
+  const tracked=[];
+  for(const key of Object.keys(names)){
+   const textarea=modal.querySelector('[data-field="'+key+'"]');
+   if(!textarea)continue;
+   let value;try{value=JSON.parse(textarea.value||'[]')}catch(e){continue}
+   const field=textarea.closest('.field')||textarea.parentElement;
+   textarea.style.display='none';
+   const panel=document.createElement('div');
+   panel.className='structured-lesson-editor';
+   panel.style.cssText='padding:12px;border:1px solid #ddd3bf;border-radius:12px;margin:8px 0 18px';
+   const heading=field.querySelector('label');
+   if(heading)heading.textContent=names[key];
+   field.appendChild(panel);
+   const build=(parent,containerKey,depth)=>{
+    if(depth>20)return;
+    const current=parent[containerKey];
+    const isArray=Array.isArray(current),isObject=current!==null&&typeof current==='object';
+    if(!isArray&&!isObject){
+     const input=document.createElement(typeof current==='string'&&current.length>110?'textarea':'input');
+     if(input.tagName==='INPUT')input.type='text';
+     input.value=current==null?'':String(current);
+     input.style.cssText='display:block;width:100%;min-height:38px;margin:5px 0 10px;padding:8px;border:1px solid #d6cbbb;border-radius:8px;box-sizing:border-box';
+     input.addEventListener('input',()=>{parent[containerKey]=typeof current==='number'?Number(input.value):typeof current==='boolean'?input.value==='true':input.value});
+     return input;
+    }
+    const group=document.createElement('div');
+    group.style.cssText='margin:8px 0 12px;padding:8px 10px;border-left:2px solid #c7ad75';
+    const keys=Object.keys(current);
+    for(const k of keys){
+     const item=document.createElement('div');
+     const label=document.createElement('label');
+     label.style.cssText='display:block;font-weight:600;margin:8px 0 4px;font-size:13px';
+     const labels={title:'Tiêu đề',content:'Nội dung',explanation:'Giải thích',subpoints:'Các ý phụ',items:'Các ý',item:'Ý',question:'Câu hỏi',text:'Nội dung',scripture_reference:'Kinh Thánh',application:'Áp dụng'};
+     label.textContent=isArray?'Mục '+(Number(k)+1):(labels[k]||k.replaceAll('_',' '));
+     item.appendChild(label);
+     item.appendChild(build(current,k,depth+1));
+     if(isArray){
+      const remove=document.createElement('button');remove.type='button';remove.className='btn white';remove.textContent='Xóa mục này';
+      remove.style.cssText='font-size:12px;margin-bottom:8px';
+      remove.onclick=()=>{current.splice(Number(k),1);render()};
+      item.appendChild(remove);
+     }
+     group.appendChild(item);
+    }
+    if(isArray){
+     const add=document.createElement('button');add.type='button';add.className='btn white';add.textContent='+ Thêm mục';
+     add.onclick=()=>{const template=current.length?JSON.parse(JSON.stringify(current[current.length-1])):(containerKey==='subpoints'||containerKey==='items'?{title:'',items:[]}:containerKey==='main_content'?{title:'',subpoints:[]}:containerKey==='reflection_questions'?'':'');function clear(x){if(Array.isArray(x))return [];if(x&&typeof x==='object')return Object.fromEntries(Object.entries(x).map(([k,v])=>[k,clear(v)]));return typeof x==='string'?'':x}current.push(clear(template));render()};
+     group.appendChild(add);
+    }
+    return group;
+   };
+   function render(){panel.replaceChildren(build({root:value},'root',0))}
+   render();
+   tracked.push({textarea,getValue:()=>value});
+  }
+  const save=modal.querySelector('#saveEdit');
+  if(save)save.addEventListener('click',()=>{for(const f of tracked)f.textarea.value=JSON.stringify(f.getValue());},true);
+ }
+ const obs=new MutationObserver(()=>mount());
+ const start=()=>{obs.observe(document.body,{childList:true,subtree:true});mount()};
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
