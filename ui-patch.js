@@ -118,54 +118,6 @@ const pts=Array.isArray(v.main_content)?v.main_content:[];const rqs=Array.isArra
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
 
-/* Remember Admin sign-in for up to 15 days; never persist the password.
-   Restore synchronously before the page's first load, and validate remotely. */
-(function(){
- const KEY='theology_remember_admin_v1';
- const LIMIT=15*24*60*60*1000;
- const saved=(()=>{try{return JSON.parse(localStorage.getItem(KEY)||'null')}catch{return null}})();
- const valid=!!(saved&&typeof saved.session==='string'&&saved.session&&
-   typeof saved.savedAt==='number'&&Date.now()-saved.savedAt>=0&&Date.now()-saved.savedAt<LIMIT);
- if(valid){
-   S.pin=saved.session;S.adminName=saved.name||'';S.isPrimary=!!saved.primary;
- }else{try{localStorage.removeItem(KEY)}catch(e){}}
- const oldAdm=adm;
- adm=async function(action,payload={},pin=S.pin){
-   try{
-     const result=await oldAdm(action,payload,pin);
-     if(action==='admin_login'){
-       const cb=document.getElementById('rememberAdmin');
-       if(cb&&cb.checked&&result.session){
-         try{localStorage.setItem(KEY,JSON.stringify({session:result.session,name:result.admin_name||'',primary:!!result.is_primary,savedAt:Date.now()}))}catch(e){}
-       }else{try{localStorage.removeItem(KEY)}catch(e){}}
-     }
-     if(action==='admin_logout'){try{localStorage.removeItem(KEY)}catch(e){}}
-     return result;
-   }catch(e){
-     if(action==='load_admin_snapshot'&&valid&&pin===saved.session){
-       try{localStorage.removeItem(KEY)}catch(err){}
-       S.pin='';S.adminName='';S.isPrimary=false;
-     }
-     throw e;
-   }
- };
- const oldLock=lockAdmin;
- lockAdmin=async function(){try{localStorage.removeItem(KEY)}catch(e){}return oldLock.apply(this,arguments)};
- function inject(){
-   const pin=document.getElementById('adminPin');
-   if(!pin||document.getElementById('rememberAdmin')||document.getElementById('oldPin'))return;
-   const field=pin.closest('.field');if(!field)return;
-   const label=document.createElement('label');
-   label.style.cssText='display:flex;align-items:center;gap:9px;margin:10px 0 15px;cursor:pointer';
-   const cb=document.createElement('input');cb.id='rememberAdmin';cb.type='checkbox';
-   cb.checked=valid;cb.style.cssText='width:auto;min-width:17px;height:17px;margin:0';
-   label.append(cb,document.createTextNode('Ghi nhớ đăng nhập trong 15 ngày trên thiết bị này'));
-   field.after(label);
- }
- const start=()=>{new MutationObserver(inject).observe(document.body,{childList:true,subtree:true});inject()};
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
-})();
-
 /* Open church bylaws inside the Theology Library instead of navigating away. */
 (function(){
  function openRules(){
