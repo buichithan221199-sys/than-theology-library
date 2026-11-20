@@ -165,3 +165,40 @@ const pts=Array.isArray(v.main_content)?v.main_content:[];const rqs=Array.isArra
  const start=()=>{new MutationObserver(inject).observe(document.body,{childList:true,subtree:true});inject()};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
+
+/* Open church bylaws inside the Theology Library instead of navigating away. */
+(function(){
+ function openRules(){
+  let existing=document.getElementById('church-rules-dialog');
+  if(existing){existing.style.display='flex';return}
+  const modal=document.createElement('div');
+  modal.id='church-rules-dialog';
+  modal.style.cssText='position:fixed;inset:0;z-index:2147483000;background:rgba(6,20,39,.78);display:flex;align-items:center;justify-content:center;padding:14px';
+  const panel=document.createElement('div');
+  panel.style.cssText='width:min(1260px,100%);height:min(94vh,100%);background:#fff;border-radius:16px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 80px #0005';
+  const bar=document.createElement('div');
+  bar.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:10px 15px;background:#0b2346;color:white;font-weight:700;gap:12px';
+  const label=document.createElement('span');label.textContent='📜 Nội Quy Hội Thánh';
+  const close=document.createElement('button');close.type='button';close.textContent='✕ Đóng';
+  close.style.cssText='background:#fff;color:#0b2346;border:0;border-radius:8px;padding:8px 12px;cursor:pointer';
+  close.addEventListener('click',()=>modal.remove());
+  bar.append(label,close);
+  const frame=document.createElement('iframe');
+  frame.title='Nội Quy Hội Thánh';
+  frame.src='./noi-quy.html';
+  frame.style.cssText='border:0;width:100%;flex:1;min-height:0';
+  panel.append(bar,frame);modal.append(panel);
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.remove()});
+  document.body.append(modal);
+ }
+ document.addEventListener('click',function(e){
+  const a=e.target.closest('a[href]');
+  if(!a)return;
+  try{
+   const url=new URL(a.href,location.href);
+   if(url.origin===location.origin&&url.pathname.endsWith('/noi-quy.html')){
+    e.preventDefault();e.stopPropagation();openRules();
+   }
+  }catch(err){}
+ },true);
+})();
