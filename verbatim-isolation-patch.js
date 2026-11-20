@@ -75,7 +75,6 @@
 
   // Replace the earlier viewer so its upload button always uses the isolated transcript-only flow.
   window.openVerbatimTranscript=async function(lessonId){
-    if(!S.pin){unlock(()=>window.openVerbatimTranscript(lessonId));return}
     const lesson=S.lessons.find(x=>x.id===lessonId)||S.selected;
     let loading=null;
     try{
@@ -83,8 +82,8 @@
       const j=await verbatimOnlyApi('get',{lesson_id:lessonId});
       loading?.remove();loading=null;
       if(!j?.exists){
-        const d=overlay(`<div class="modal" style="max-width:620px"><button class="x">×</button><h2>Nguyên văn MP3</h2><p>Bài <b>${esc(lesson?.title||'này')}</b> chưa có bản nguyên văn MP3 được lưu.</p><div class="verbatim-meta"><b>Lưu ý:</b> tải MP3 tại đây chỉ tạo bản nguyên văn riêng. Nội dung bài học chính sẽ không bị sửa hoặc ghi đè.</div><div class="modalActions"><button class="btn gold" id="verbOnlyUpload">🎙️ Tải MP3 chỉ để tạo nguyên văn</button></div></div>`);
-        d.querySelector('#verbOnlyUpload').onclick=()=>{d.remove();openVerbatimOnlyUpload(lessonId)};
+        const d=overlay(`<div class="modal" style="max-width:620px"><button class="x">×</button><h2>Nguyên văn MP3</h2><p>Bài <b>${esc(lesson?.title||'này')}</b> chưa có bản nguyên văn MP3 được lưu.</p><div class="verbatim-meta"><b>Lưu ý:</b> bản nguyên văn được lưu riêng và không làm thay đổi bài học chính.</div>${S.pin?'<div class="modalActions"><button class="btn gold" id="verbOnlyUpload">🎙️ Tải MP3 chỉ để tạo nguyên văn</button></div>':''}</div>`);
+        if(S.pin)d.querySelector('#verbOnlyUpload').onclick=()=>{d.remove();openVerbatimOnlyUpload(lessonId)};
         return;
       }
       const transcript=String(j.transcript||'');
