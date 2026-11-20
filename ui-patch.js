@@ -117,3 +117,55 @@ const pts=Array.isArray(v.main_content)?v.main_content:[];const rqs=Array.isArra
  const start=()=>{obs.observe(document.body,{childList:true,subtree:true});mount()};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
+
+/* Optional persistent admin sign-in. Store session token only when requested;
+   never store the Admin password. Server still enforces token expiration. */
+(function(){
+ const KEY='theology_remember_admin_v1';
+ let remember=false;
+ const originalAdm=adm;
+ adm=async function(action,payload={},pin=S.pin){
+  const result=await originalAdm(action,payload,pin);
+  if(action==='admin_login'){
+   if(remember&&result.session){
+    try{localStorage.setItem(KEY,JSON.stringify({session:result.session,name:result.admin_name||'',primary:!!result.is_primary}));}catch(e){}
+   }else{try{localStorage.removeItem(KEY)}catch(e){}}
+  }
+  if(action==='admin_logout'){try{localStorage.removeItem(KEY)}catch(e){}}
+  return result;
+ };
+ const originalLock=lockAdmin;
+ lockAdmin=async function(){try{localStorage.removeItem(KEY)}catch(e){}return originalLock.apply(this,arguments)};
+ function addRememberOption(){
+  const dialog=[...document.querySelectorAll('.modal')].find(x=>x.querySelector('#adminName')&&x.querySelector('#adminPin'));
+  if(!dialog||dialog.querySelector('#rememberAdmin')||dialog.querySelector('#oldPin'))return;
+  const pin=dialog.querySelector('#adminPin');
+  const field=pin.closest('.field');
+  if(!field)return;
+  const label=document.createElement('label');
+  label.style.cssText='display:flex;align-items:center;gap:9px;margin:10px 0 15px;cursor:pointer';
+  const checkbox=document.createElement('input');
+  checkbox.type='checkbox';checkbox.id='rememberAdmin';checkbox.checked=remember;
+  checkbox.style.cssText='width:auto;min-width:17px;height:17px;margin:0';
+  checkbox.addEventListener('change',()=>{remember=checkbox.checked});
+  label.append(checkbox,document.createTextNode('Ghi nhớ đăng nhập trên thiết bị này'));
+  field.after(label);
+ }
+ const observer=new MutationObserver(addRememberOption);
+ const start=()=>{observer.observe(document.body,{childList:true,subtree:true});addRememberOption()};
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+ async function restore(){
+  let saved;try{saved=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){return}
+  if(!saved||typeof saved.session!=='string')return;
+  try{
+   await originalAdm('load_admin_snapshot',{},saved.session);
+   S.pin=saved.session;S.adminName=saved.name||'';S.isPrimary=!!saved.primary;
+   remember=true;
+   await load();
+  }catch(e){
+   try{localStorage.removeItem(KEY)}catch(err){}
+   S.pin='';S.adminName='';S.isPrimary=false;
+  }
+ }
+ restore();
+})();
