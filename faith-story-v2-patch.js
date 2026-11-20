@@ -50,35 +50,14 @@
     if(!S.pin){unlock();return}
     const isStory=kind==='faith_story';
     const label=isStory?'Câu chuyện đức tin':'Lời cầu nguyện ngắn';
-    const help=isStory
-      ?'Có 3 cách tạo: theo câu/phân đoạn Kinh Thánh, theo chủ đề bằng câu chuyện đời thật, hoặc theo chủ đề bằng câu chuyện Kinh Thánh.'
-      :'AI sẽ tạo suy ngẫm và lời cầu nguyện ngắn dựa trên Kinh Thánh.';
-    const storyMode=isStory?`<div class="field"><label>Tạo câu chuyện theo</label><select id="storyMode"><option value="scripture">Theo câu / phân đoạn Kinh Thánh</option><option value="topic">Theo chủ đề · câu chuyện đời thật</option><option value="topic_bible">Theo chủ đề · câu chuyện Kinh Thánh</option></select></div>`:'';
-    const scriptureBox=`<div class="field" id="scriptureBox"><label>Câu / phân đoạn Kinh Thánh</label><textarea id="src" rows="8" placeholder="Ví dụ: Thi Thiên 23:1-4 hoặc dán nguyên văn phân đoạn..."></textarea></div>`;
-    const topicBox=isStory?`<div class="field hidden" id="topicBox"><label>Chủ đề</label><textarea id="topic" rows="5" placeholder="Ví dụ: tha thứ, kiên trì, đức tin khi chờ đợi, khi bị hiểu lầm, trung tín trong thử thách..."></textarea><div class="muted" id="topicHelp" style="margin-top:6px"></div></div>`:'';
-    const d=overlay(`<div class="modal"><button class="x">×</button><h2>Tạo ${label}</h2><p class="muted">${help}</p>${storyMode}${scriptureBox}${topicBox}<div id="err"></div><div class="modalActions"><button class="btn gold" id="go">Tạo & xem trước</button></div></div>`);
+    const help=isStory?'Có 3 cách tạo: theo câu Kinh Thánh, theo chủ đề bằng câu chuyện đời thật, hoặc câu chuyện Kinh Thánh.':'Tạo lời cầu nguyện cá nhân theo hoàn cảnh, nan đề hoặc phân đoạn Kinh Thánh.';
+    const modeOptions=isStory?'<option value="scripture">Theo câu / phân đoạn Kinh Thánh</option><option value="topic">Theo chủ đề · câu chuyện đời thật</option><option value="topic_bible">Theo chủ đề · câu chuyện Kinh Thánh</option>':'<option value="personal">Theo chủ đề / hoàn cảnh / nan đề cá nhân</option><option value="scripture">Theo câu / phân đoạn Kinh Thánh</option>';
+    const d=overlay(`<div class="modal"><button class="x">×</button><h2>Tạo ${label}</h2><p class="muted">${help}</p><div class="field"><label>${isStory?'Tạo câu chuyện theo':'Tạo lời cầu nguyện theo'}</label><select id="storyMode">${modeOptions}</select></div><div class="field" id="scriptureBox"><label>Câu / phân đoạn Kinh Thánh</label><textarea id="src" rows="7" placeholder="Ví dụ: Thi Thiên 23:1-4 hoặc dán nguyên văn phân đoạn..."></textarea></div><div class="field" id="topicBox"><label id="topicLabel">Chủ đề / hoàn cảnh / nan đề</label><textarea id="topic" rows="6" placeholder="Ví dụ: Con đang mệt mỏi, áp lực công việc và cần sức mới từ Chúa..."></textarea><div class="muted" id="topicHelp" style="margin-top:6px"></div>${!isStory?'<div class="devotional-actions" style="margin-top:12px"><button type="button" class="btn white" data-prayer-example="Con đang mệt mỏi, kiệt sức cả thể chất và tinh thần. Xin Chúa ban cho con sự nghỉ ngơi, bình an và sức mới.">Khi bản thân mệt mỏi</button><button type="button" class="btn white" data-prayer-example="Con đang gặp khó khăn và thử thách trong cuộc sống. Xin Chúa giúp con vững tin và vượt qua.">Vượt qua khó khăn</button><button type="button" class="btn white" data-prayer-example="Con đang lo lắng và áp lực, xin Chúa ban bình an cho lòng con.">Lo lắng, áp lực</button><button type="button" class="btn white" data-prayer-example="Con đang đau bệnh, xin Chúa nâng đỡ, thêm sức và giúp con được chữa lành.">Đau bệnh</button><button type="button" class="btn white" data-prayer-example="Con đang gặp khó khăn tài chính và công việc, xin Chúa ban sự khôn ngoan để con vượt qua.">Công việc, tài chính</button><button type="button" class="btn white" data-prayer-example="Con đang gặp vấn đề trong gia đình, xin Chúa giúp con yêu thương, tha thứ và sống hòa thuận.">Gia đình</button></div>':''}</div><div id="err"></div><div class="modalActions"><button class="btn gold" id="go">Tạo & xem trước</button></div></div>`);
     const modeEl=d.querySelector('#storyMode'),scripture=d.querySelector('#scriptureBox'),topic=d.querySelector('#topicBox'),topicHelp=d.querySelector('#topicHelp');
-    const syncMode=()=>{if(!isStory)return;const mode=modeEl.value;const byTopic=mode==='topic'||mode==='topic_bible';scripture?.classList.toggle('hidden',byTopic);topic?.classList.toggle('hidden',!byTopic);if(topicHelp){topicHelp.textContent=mode==='topic_bible'?'AI sẽ chọn một câu chuyện Kinh Thánh phù hợp với chủ đề, kể lại trung thành với phân đoạn, không bịa thêm chi tiết, rồi rút ra bài học và lời cầu nguyện.':'AI sẽ tìm và đối chiếu một câu chuyện có thật trong đời sống: người thật, sự kiện thật, địa điểm thật; sau đó mới liên hệ với một phân đoạn Kinh Thánh phù hợp.'}};
-    if(modeEl){modeEl.onchange=syncMode;syncMode()}
-    d.querySelector('#go').onclick=async()=>{
-      const mode=isStory?(modeEl?.value||'scripture'):'scripture';
-      const text=d.querySelector('#src')?.value.trim()||'';
-      const topicText=d.querySelector('#topic')?.value.trim()||'';
-      if((mode==='topic'||mode==='topic_bible')&&!topicText){d.querySelector('#err').innerHTML='<div class="error">Chưa nhập chủ đề.</div>';return}
-      if(mode!=='topic'&&mode!=='topic_bible'&&!text){d.querySelector('#err').innerHTML='<div class="error">Chưa nhập câu hoặc phân đoạn Kinh Thánh.</div>';return}
-      const b=d.querySelector('#go');
-      try{
-        b.disabled=true;b.textContent=mode==='topic'?'Đang tìm câu chuyện thật…':mode==='topic_bible'?'Đang chọn câu chuyện Kinh Thánh…':'Đang tạo…';
-        const fd=new FormData();
-        fd.append('content_kind',kind);
-        fd.append('creation_mode',mode);
-        fd.append('text',text);
-        fd.append('topic',topicText);
-        const r=await fetch(DEVOTIONAL,{method:'POST',body:fd});
-        const j=await r.json();if(!r.ok)throw Error(j.error||'Không tạo được nội dung');
-        const vv=j.lesson||j;vv.__creation_mode=j.creation_mode||mode;d.remove();previewV2(vv,kind);
-      }catch(e){b.disabled=false;b.textContent='Tạo & xem trước';d.querySelector('#err').innerHTML='<div class="error">'+esc(e.message)+'</div>'}
-    };
+    const syncMode=()=>{const mode=modeEl.value;const byTopic=mode!=='scripture';scripture.classList.toggle('hidden',byTopic);topic.classList.toggle('hidden',!byTopic);if(topicHelp)topicHelp.textContent=mode==='topic_bible'?'AI sẽ chọn câu chuyện Kinh Thánh phù hợp.':mode==='topic'?'AI sẽ tìm một câu chuyện đời thật phù hợp.':mode==='personal'?'AI sẽ viết lời cầu nguyện ngôi thứ nhất, xưng con, trực tiếp thưa với Chúa.':''};
+    modeEl.onchange=syncMode;syncMode();
+    d.querySelectorAll('[data-prayer-example]').forEach(b=>b.onclick=()=>{modeEl.value='personal';syncMode();d.querySelector('#topic').value=b.dataset.prayerExample;d.querySelector('#topic').focus()});
+    d.querySelector('#go').onclick=async()=>{const mode=modeEl.value;const scriptureText=d.querySelector('#src').value.trim(),topicText=d.querySelector('#topic').value.trim();if(mode==='scripture'?!scriptureText:!topicText){d.querySelector('#err').innerHTML='<div class="error">Vui lòng nhập câu Kinh Thánh hoặc hoàn cảnh cần cầu nguyện.</div>';return}const b=d.querySelector('#go');try{b.disabled=true;b.textContent='Đang tạo…';const fd=new FormData();fd.append('content_kind',kind);fd.append('creation_mode',mode);fd.append('text',scriptureText);fd.append('topic',topicText);const r=await fetch(DEVOTIONAL,{method:'POST',body:fd});const j=await r.json();if(!r.ok)throw Error(j.error||'Không tạo được nội dung');const vv=j.lesson||j;vv.__creation_mode=j.creation_mode||mode;d.remove();previewV2(vv,kind)}catch(e){b.disabled=false;b.textContent='Tạo & xem trước';d.querySelector('#err').innerHTML='<div class="error">'+esc(e.message)+'</div>'}};
   };
 
   const oldRenderFaithV2=render;
