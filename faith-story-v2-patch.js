@@ -25,8 +25,8 @@
       ${sourceCount?`<div class="muted" style="margin:-4px 0 12px">✓ Câu chuyện đời thật đã được đối chiếu qua ${sourceCount} nguồn web công khai.</div>`:''}
       ${v.key_verse_1925?`<div class="field"><label>Câu gốc · Bản 1925</label><textarea id="kv" rows="3">${esc(v.key_verse_1925)}</textarea></div>`:''}
       <div class="field"><label>${isStory?(creationMode==='topic_bible'?'Câu chuyện Kinh Thánh · theo chủ đề · tối đa 500 chữ':creationMode==='topic'?'Câu chuyện đời thật · người thật · sự kiện thật · địa điểm thật · tối đa 500 chữ':'Câu chuyện đức tin · tối đa 500 chữ'):'Suy ngẫm ngắn'}</label><textarea id="sum" rows="${isStory?16:6}">${esc(v.summary||'')}</textarea></div>
-      ${isStory?`<div class="field"><label>Bài học rút ra · đúng 1 câu</label><textarea id="app" rows="3">${esc(v.application||'')}</textarea></div>`:''}
-      <div class="field"><label>Lời cầu nguyện ngắn · kết thúc bằng “Trong Danh Chúa Giê-Xu. A-Men.”</label><textarea id="pr" rows="7">${esc(v.prayer||'')}</textarea></div>
+      <div class="field"><label>${isStory?'Bài học rút ra · đúng 1 câu':'Lời Chúa an ủi, khích lệ · giải thích và áp dụng'}</label><textarea id="app" rows="${isStory?3:7}">${esc(v.application||'')}</textarea></div>
+      <div class="field"><label>Lời cầu nguyện · kết thúc bằng “Trong Danh Chúa Giê-Xu. A-Men.”</label><textarea id="pr" rows="12">${esc(v.prayer||'')}</textarea></div>
       <div id="err"></div><div class="modalActions"><button class="btn gold" id="save">Lưu + tạo ảnh minh họa</button></div></div>`);
     d.querySelector('#save').onclick=async()=>{
       const b=d.querySelector('#save');
@@ -34,7 +34,7 @@
         b.disabled=true;b.textContent='Đang lưu…';
         const summary=d.querySelector('#sum').value.trim();
         if(isStory&&summary.split(/\s+/).filter(Boolean).length>500){throw Error('Câu chuyện đức tin tối đa 500 chữ. Vui lòng rút ngắn trước khi lưu.')}
-        const lesson={title:d.querySelector('#t').value.trim(),summary,scripture_reference:d.querySelector('#sr').value.trim(),key_verse_reference:v.key_verse_reference||'',key_verse_1925:d.querySelector('#kv')?.value.trim()||'',subtitle:v.subtitle||'',teacher:'',introduction:'',background:'',transition_text:'',application:isStory?(d.querySelector('#app')?.value.trim()||''):'',prayer:ensureFaithPrayerEnding(d.querySelector('#pr').value),main_content:[],reflection_questions:[],tags:v.tags||[],source_kind:kind,source_notes:Array.isArray(v?.source_urls)?v.source_urls.join('\n'):'',is_published:true,folder_slug:isStory?'faith-stories':'short-prayers'};
+        const lesson={title:d.querySelector('#t').value.trim(),summary,scripture_reference:d.querySelector('#sr').value.trim(),key_verse_reference:v.key_verse_reference||'',key_verse_1925:d.querySelector('#kv')?.value.trim()||'',subtitle:v.subtitle||'',teacher:'',introduction:'',background:'',transition_text:'',application:d.querySelector('#app')?.value.trim()||'',prayer:ensureFaithPrayerEnding(d.querySelector('#pr').value),main_content:[],reflection_questions:[],tags:v.tags||[],source_kind:kind,source_notes:Array.isArray(v?.source_urls)?v.source_urls.join('\n'):'',is_published:true,folder_slug:isStory?'faith-stories':'short-prayers'};
         const res=await adm('save_lesson',{lesson});
         d.remove();
         await makeCover(res.lesson,kind);
@@ -68,9 +68,9 @@
 
   window.exportDevotionalPdf=function(kind){
     const l=S.selected;if(!l)return;
-    const title=kind==='faith_story'?'Câu chuyện đức tin':'Lời cầu nguyện ngắn';
+    const title=kind==='faith_story'?'Câu chuyện đức tin':'Lời cầu nguyện';
     const image=l.cover_image_url?`<img src="${pdfEsc(l.cover_image_url)}" style="width:100%;height:260px;object-fit:cover;border-radius:12px;margin-bottom:18px">`:'';
-    const body=`${image}<h1>${pdfEsc(l.title||title)}</h1>${l.scripture_reference?`<div class="meta">Kinh Thánh: ${pdfEsc(l.scripture_reference)}</div>`:''}${l.key_verse_1925?`<div class="verse"><b>${pdfEsc(l.key_verse_reference||'Câu gốc · Bản 1925')}</b><br>${pdfEsc(l.key_verse_1925)}</div>`:''}${kind==='faith_story'?`<h2>Câu chuyện đức tin</h2><p>${pdfEsc(l.summary||'')}</p>${l.application?`<h2>Bài học rút ra</h2><p>${pdfEsc(l.application)}</p>`:''}`:`${l.summary?`<h2>Suy ngẫm</h2><p>${pdfEsc(l.summary)}</p>`:''}`}<h2>Lời cầu nguyện ngắn</h2><p>${pdfEsc(l.prayer||'')}</p><div class="footer-note">Thư Viện Thần Học · Hành trình đức tin</div>`;
+    const body=`${image}<h1>${pdfEsc(l.title||title)}</h1>${l.scripture_reference?`<div class="meta">Kinh Thánh: ${pdfEsc(l.scripture_reference)}</div>`:''}${l.key_verse_1925?`<div class="verse"><b>${pdfEsc(l.key_verse_reference||'Câu gốc · Bản 1925')}</b><br>${pdfEsc(l.key_verse_1925)}</div>`:''}${kind==='faith_story'?`<h2>Câu chuyện đức tin</h2><p>${pdfEsc(l.summary||'')}</p>${l.application?`<h2>Bài học rút ra</h2><p>${pdfEsc(l.application)}</p>`:''}`:`${l.summary?`<h2>Suy ngẫm</h2><p>${pdfEsc(l.summary)}</p>`:''}`}<h2>Lời cầu nguyện</h2><p>${pdfEsc(l.prayer||'')}</p>${kind!=='faith_story'&&(l.scripture_reference||l.application)?`<h2>Lời Chúa an ủi, khích lệ</h2>${l.scripture_reference?`<p><b>${pdfEsc(l.scripture_reference)}</b></p>`:''}${l.application?`<p>${pdfEsc(l.application)}</p>`:''}`:''}<div class="footer-note">Thư Viện Thần Học · Hành trình đức tin</div>`;
     openPrintablePdf((l.title||title)+' - '+title,body);
   };
 })();
