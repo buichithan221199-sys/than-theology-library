@@ -11,11 +11,13 @@
   `;
   if(!document.getElementById(css.id))document.head.appendChild(css);
 
-  const countFor=f=>S.lessons.filter(l=>l.folder_id===f.id).length;
-  const iconFor=f=>f.slug==='faith-stories'?'♡':f.slug==='short-prayers'?'🙏':f.slug==='scripture-lessons'?'✦':'📁';
+  const nineBooksSlug='new-believers-nine-books';
+  const childSlugs=['new-believers-nine-books-teacher','new-believers-nine-books-student'];
+  const countFor=f=>S.lessons.filter(l=>l.folder_id===f.id||(f.slug===nineBooksSlug&&childSlugs.some(sl=>S.folders.find(c=>c.slug===sl)?.id===l.folder_id))).length;
+  const iconFor=f=>f.slug===nineBooksSlug?'📚':f.slug==='faith-stories'?'♡':f.slug==='short-prayers'?'🙏':f.slug==='scripture-lessons'?'✦':'📁';
 
   function folderTiles(){
-    const fs=[...(S.folders||[])].sort((a,b)=>(a.sort_order||999)-(b.sort_order||999));
+    const fs=[...(S.folders||[])].filter(f=>!childSlugs.includes(f.slug)).sort((a,b)=>(a.sort_order||999)-(b.sort_order||999));
     if(!fs.length)return '<div class="panel empty">Chưa có thư mục.</div>';
     return `<section class="home-folders"><div class="home-folders-head"><div><h3>Thư mục nội dung</h3><p>Mở một thư mục để xem toàn bộ nội dung bên trong.</p></div></div><div class="folder-grid">${fs.map(f=>`<article class="folder-tile" onclick="openHomeFolder('${f.id}')"><div class="folder-icon">${iconFor(f)}</div><h4>${esc(f.name)}</h4><p>${esc(f.description||'Các nội dung được lưu trong thư mục này.')}</p><span class="folder-count">${countFor(f)} nội dung</span></article>`).join('')}</div></section>`;
   }
@@ -33,9 +35,15 @@
   function folderView(){
     const f=S.folders.find(x=>x.id===S.homeFolderId);
     if(!f)return '<div class="panel empty">Không tìm thấy thư mục.</div>';
+    if(f.slug===nineBooksSlug){
+      const children=childSlugs.map(sl=>S.folders.find(x=>x.slug===sl)).filter(Boolean);
+      return `<div class="folder-view-head"><div class="folder-view-title"><h2>📚 ${esc(f.name)}</h2><p>Chọn tài liệu dành cho Giáo viên hoặc Học viên</p></div><button class="btn white" onclick="closeHomeFolder()">← Trở về Trang chủ</button></div><div class="folder-grid">${children.map(c=>`<article class="folder-tile" onclick="openHomeFolder('${c.id}')"><div class="folder-icon">${c.slug.endsWith('teacher')?'👩‍🏫':'📖'}</div><h4>${esc(c.name)}</h4><p>${esc(c.description||'')}</p><span class="folder-count">${countFor(c)} nội dung</span></article>`).join('')}</div>`;
+    }
     const items=S.lessons.filter(l=>l.folder_id===f.id);
+    const parent=S.folders.find(x=>x.slug===nineBooksSlug);
+    const backAction=childSlugs.includes(f.slug)&&parent?'openHomeFolder(\\''+parent.id+'\\')':'closeHomeFolder()';
     const cards=items.length?`<div class="folder-content-grid">${items.map((l,i)=>`<article class="card folder-content-card" onclick="openFolderContent('${l.id}')"><div class="folder-content-cover" style="background-image:url('${lessonVisual(l,i)}')"></div><div class="folder-content-body"><div class="folder-type">${l.source_kind==='faith_story'?'Câu chuyện đức tin':l.source_kind==='short_prayer'?'Lời cầu nguyện':f.name}</div><small>${esc(l.scripture_reference||'')}</small><h3>${esc(l.title)}</h3><p>${esc(l.summary||l.prayer||'')}</p></div></article>`).join('')}</div>`:'<div class="panel empty">Thư mục này chưa có nội dung.</div>';
-    return `<div class="folder-view-head"><div class="folder-view-title"><h2>${esc(f.name)}</h2><p>${items.length} nội dung</p></div><button class="btn white" onclick="closeHomeFolder()">← Trở về Trang chủ</button></div>${cards}`;
+    return `<div class="folder-view-head"><div class="folder-view-title"><h2>${esc(f.name)}</h2><p>${items.length} nội dung</p></div><button class="btn white" onclick="${backAction}">← Quay lại</button></div>${cards}`;
   }
 
   const oldHomeFolders=home;
