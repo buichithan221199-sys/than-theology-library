@@ -23,7 +23,7 @@
       <div class="field"><label>Tiêu đề</label><input id="t" value="${esc(v.title||'')}"></div>
       <div class="field"><label>Phân đoạn Kinh Thánh</label><input id="sr" value="${esc(v.scripture_reference||'')}"></div>
       ${sourceCount?`<div class="muted" style="margin:-4px 0 12px">✓ Câu chuyện đời thật đã được đối chiếu qua ${sourceCount} nguồn web công khai.</div>`:''}
-      ${v.key_verse_1925?`<div class="field"><label>Câu gốc · Bản 1925</label><textarea id="kv" rows="3">${esc(v.key_verse_1925)}</textarea></div>`:''}
+      ${!isStory?`<div class="field"><label>Nội dung câu Kinh Thánh · Bản Truyền Thống 1925 (kiểm tra trước khi lưu)</label><textarea id="kv" rows="4" placeholder="Nhập nguyên văn câu Kinh Thánh đúng với phân đoạn bên trên...">${esc(v.key_verse_1925||'')}</textarea></div>`:v.key_verse_1925?`<div class="field"><label>Câu gốc · Bản 1925</label><textarea id="kv" rows="3">${esc(v.key_verse_1925)}</textarea></div>`:''}
       <div class="field"><label>${isStory?(creationMode==='topic_bible'?'Câu chuyện Kinh Thánh · theo chủ đề · tối đa 500 chữ':creationMode==='topic'?'Câu chuyện đời thật · người thật · sự kiện thật · địa điểm thật · tối đa 500 chữ':'Câu chuyện đức tin · tối đa 500 chữ'):'Suy ngẫm ngắn'}</label><textarea id="sum" rows="${isStory?16:6}">${esc(v.summary||'')}</textarea></div>
       <div class="field"><label>${isStory?'Bài học rút ra · đúng 1 câu':'Lời Chúa an ủi, khích lệ · giải thích và áp dụng'}</label><textarea id="app" rows="${isStory?3:7}">${esc(v.application||'')}</textarea></div>
       <div class="field"><label>Lời cầu nguyện · kết thúc bằng “Trong Danh Chúa Giê-Xu. A-Men.”</label><textarea id="pr" rows="12">${esc(v.prayer||'')}</textarea></div>
