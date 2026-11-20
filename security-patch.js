@@ -37,6 +37,8 @@
   };
 
   window.lockAdmin=async function(){
+    if(typeof forgetRememberedAdmin==='function')forgetRememberedAdmin();
+    try{if(S.pin)await adm('admin_logout')}catch(e){}
     S.pin='';S.revealed={};S.aiUsage=null;
     if(S.tab==='ai-cost')S.tab='home';
     try{await publicLoad()}catch(e){console.error(e);render()}
