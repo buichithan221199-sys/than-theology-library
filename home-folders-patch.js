@@ -41,7 +41,7 @@
     }
     const items=S.lessons.filter(l=>l.folder_id===f.id&&(!!S.pin||l.is_published===true));
     const parent=S.folders.find(x=>x.slug===nineBooksSlug);
-    const backAction=childSlugs.includes(f.slug)&&parent?'openHomeFolder(\\''+parent.id+'\\')':'closeHomeFolder()';
+    const backAction=childSlugs.includes(f.slug)&&parent?`openHomeFolder('${parent.id}')`:'closeHomeFolder()';
     const cards=items.length?`<div class="folder-content-grid">${items.map((l,i)=>`<article class="card folder-content-card" onclick="openFolderContent('${l.id}')"><div class="folder-content-cover" style="background-image:url('${lessonVisual(l,i)}')"></div><div class="folder-content-body"><div class="folder-type">${l.source_kind==='faith_story'?'Câu chuyện đức tin':l.source_kind==='short_prayer'?'Lời cầu nguyện':f.name}</div><small>${esc(l.scripture_reference||'')}</small><h3>${esc(l.title)}</h3><p>${esc(l.summary||l.prayer||'')}</p></div></article>`).join('')}</div>`:'<div class="panel empty">Thư mục này chưa có nội dung.</div>';
     return `<div class="folder-view-head"><div class="folder-view-title"><h2>${esc(f.name)}</h2><p>${items.length} nội dung</p></div><button class="btn white" onclick="${backAction}">← Quay lại</button></div>${cards}`;
   }
