@@ -169,3 +169,6 @@ const pts=Array.isArray(v.main_content)?v.main_content:[];const rqs=Array.isArra
  }
  restore();
 })();
+
+/* Church bylaws navigation: works with dynamically rebuilt sidebars. */
+(()=>{const insert=()=>{const nav=document.querySelector('.nav,nav,.sidebar');if(!nav||nav.querySelector('[data-church-rules]'))return;const a=document.createElement('a');a.href='./noi-quy.html';a.dataset.churchRules='true';a.textContent='📜 Nội Quy Hội Thánh';a.style.cssText='display:block;padding:12px 14px;border-radius:12px;color:#d7e4f5;text-decoration:none;font-weight:600';const target=[...nav.querySelectorAll('button,a')].find(el=>/Chi phí AI|Quản lý Admin/i.test(el.textContent||''));if(target)target.before(a);else nav.append(a)};new MutationObserver(insert).observe(document.documentElement,{subtree:true,childList:true});if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',insert);else insert()})();
