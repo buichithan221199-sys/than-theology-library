@@ -4,14 +4,14 @@
 const status=document.getElementById("count");
 let semanticReady=false, extractor=null, vectors=[],records=[],currentQuery=0,searchTimer=0;
 const MODEL="Xenova/paraphrase-multilingual-MiniLM-L12-v2";
-const CACHE_KEY="church-bylaws-semantic-minilm-v1";
+const CACHE_KEY="church-bylaws-semantic-minilm-v2";
 function passages(){
  const out=[];
  sections.forEach((s,i)=>{
   const paras=s.body.split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean);
   if(!paras.length)return;
   for(const para of paras){
-   const pieces=para.length>850?(para.match(/[\s\S]{1,750}/g)||[]):[para];
+   const pieces=para.length>850?(para.match(/[\s\S]{1,650}/g)||[]):[para];
    for(const text of pieces)out.push({index:i,text,heading:s.title,chapter:s.chapter,page:s.page});
   }
  });
@@ -20,7 +20,7 @@ function passages(){
 records=passages();
 function showOriginal(){
  results.innerHTML=sections.slice(0,45).map((s,i)=>'<section class="article"><div class="chapter">'+escapeHtml(s.chapter)+'</div><h2>'+escapeHtml(s.title)+'</h2><small>Trang '+s.page+'</small><pre>'+escapeHtml(s.body.trim().slice(0,1600))+'</pre><button data-expand="'+i+'">Đọc toàn bộ nội dung gốc</button></section>').join("");
- status.textContent="Nhập câu hỏi để AI tìm theo ý nghĩa. Lần đầu cần tải mô hình miễn phí về thiết bị.";
+ status.textContent="Đây là nội dung gốc. Nhập câu hỏi để AI tìm theo ý nghĩa; không tìm từ khóa.";
 }
 function openDb(){
  return new Promise((resolve,reject)=>{
@@ -55,7 +55,7 @@ function similarity(a,b){
 }
 async function prepare(){
  if(semanticReady)return;
- status.textContent="Đang tải mô hình tìm kiếm theo ý nghĩa (miễn phí, lần đầu có thể chậm)...";
+ status.textContent="Đang tải AI ngữ nghĩa miễn phí trên thiết bị. Vui lòng đợi...";
  try{
   const {pipeline,env}=await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2");
   env.allowLocalModels=false;
@@ -68,7 +68,7 @@ async function prepare(){
    vectors=[];
    for(let i=0;i<records.length;i++){
     const r=records[i];
-    const embedding=await extractor((r.chapter+" "+r.heading+" "+r.text).slice(0,950),{pooling:"mean",normalize:true});
+    const embedding=await extractor((r.heading+" "+r.text).slice(0,650),{pooling:"mean",normalize:true});
     vectors.push(vector(embedding));
     if(i%5===0)status.textContent="Đang đọc và lập chỉ mục Nội Quy: "+(i+1)+"/"+records.length+" đoạn. Chỉ cần thực hiện lần đầu.";
     if(i%10===0)await new Promise(resolve=>setTimeout(resolve,0));
@@ -76,7 +76,7 @@ async function prepare(){
    try{await cachedSet({count:records.length,vectors})}catch(e){console.warn("Could not cache vectors",e)}
   }
   semanticReady=true;
-  status.textContent="AI đã sẵn sàng. Hãy nhập câu hỏi tự nhiên.";
+  status.textContent="AI ngữ nghĩa đã sẵn sàng. Hãy hỏi bất kỳ điều gì về Nội Quy.";
   if(input.value.trim())await searchMeaning(input.value.trim());
  }catch(e){
   console.error("Semantic model unavailable",e);
@@ -105,4 +105,4 @@ async function searchMeaning(question){
 input.addEventListener("input",()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>searchMeaning(input.value.trim()),450)});
 showOriginal();
 prepare();
-results.addEventListener("click",e=>{const b=e.target.closest("[data-expand]");if(!b)return;const s=sections[+b.dataset.expand];b.closest(".article").querySelector("pre").innerHTML=highlight(s.body.trim(),input.value.trim());b.remove()});</script></body></html>
+results.addEventListener("click",e=>{const b=e.target.closest("[data-expand]");if(!b)return;const s=sections[+b.dataset.expand];b.closest(".article").querySelector("pre").textContent=s.body.trim();b.remove()});</script></body></html>
